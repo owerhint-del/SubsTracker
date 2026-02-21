@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var showingKey = false
     @State private var saveMessage: String?
     @State private var notificationPermission: String = "Checking..."
+    @State private var toggleTask: Task<Void, Never>?
 
     private let currencies = ["USD", "EUR", "GBP", "RUB", "JPY", "CAD", "AUD"]
 
@@ -201,11 +202,15 @@ struct SettingsView: View {
             }
         }
         .onChange(of: notificationsEnabled) {
-            Task {
+            // Cancel any in-flight toggle task to prevent race on rapid switching
+            toggleTask?.cancel()
+            toggleTask = Task {
                 if notificationsEnabled {
                     // ON: request permission, then schedule from local data
                     await NotificationService.shared.requestPermissionIfNeeded()
+                    guard !Task.isCancelled else { return }
                     await SubscriptionManager.shared.scheduleNotifications(context: modelContext)
+                    guard !Task.isCancelled else { return }
                     await refreshPermissionStatus()
                 } else {
                     // OFF: immediately clear pending notifications and dedup keys

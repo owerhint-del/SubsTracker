@@ -99,15 +99,14 @@ final class NotificationService {
         let now = Date()
         let yearMonth = calendar.component(.year, from: now) * 100 + calendar.component(.month, from: now)
 
-        // Alert at the configured threshold and above (80% → alerts at 80, 90, 100)
-        let thresholds = [80, 90, 100].filter { $0 >= alertThresholdPercent }
+        let alerts = NotificationDecisions.budgetThresholdsToAlert(
+            spendPercent: percent,
+            alertThresholdPercent: alertThresholdPercent,
+            sentKeys: loadSentKeys(),
+            yearMonth: yearMonth
+        )
 
-        for threshold in thresholds {
-            guard percent >= Double(threshold) else { continue }
-
-            let dedupKey = "budget:\(yearMonth):\(threshold)"
-            guard !hasSentKey(dedupKey) else { continue }
-
+        for alert in alerts {
             let content = UNMutableNotificationContent()
             content.title = "Budget Alert"
             content.body = "You've used \(Int(percent))% of your \(CurrencyFormatter.format(monthlyBudget, code: currencyCode))/mo budget."
@@ -115,13 +114,13 @@ final class NotificationService {
 
             let trigger = makeTrigger()
             let request = UNNotificationRequest(
-                identifier: dedupKey,
+                identifier: alert.dedupKey,
                 content: content,
                 trigger: trigger
             )
 
             center.add(request)
-            markSent(dedupKey)
+            markSent(alert.dedupKey)
         }
     }
 
@@ -140,45 +139,33 @@ final class NotificationService {
         dateFormatter.formatOptions = [.withFullDate]
         let dateStr = dateFormatter.string(from: sub.renewalDate)
 
-        // Find the most specific (closest) unsent alert level.
-        // Iterate from closest to farthest; send only one per evaluation.
-        let alertDays = [1, 3, 7]
-        for daysBefore in alertDays {
-            guard daysUntil <= daysBefore else { continue }
+        guard let alert = NotificationDecisions.renewalAlertLevel(
+            daysUntil: daysUntil,
+            sentKeys: loadSentKeys(),
+            subId: sub.id.uuidString,
+            dateStr: dateStr
+        ) else { return }
 
-            let dedupKey = "renewal:\(sub.id):\(dateStr):\(daysBefore)"
-            guard !hasSentKey(dedupKey) else {
-                // Already sent this level — don't send a less-specific one
-                break
-            }
+        let content = UNMutableNotificationContent()
+        content.title = "Upcoming Renewal"
 
-            let content = UNMutableNotificationContent()
-            content.title = "Upcoming Renewal"
-
-            let costStr = CurrencyFormatter.format(sub.cost, code: currencyCode)
-            switch daysBefore {
-            case 1:
-                content.body = "\(sub.name) (\(costStr)) renews tomorrow."
-            case 3:
-                content.body = "\(sub.name) (\(costStr)) renews in \(daysUntil) days."
-            case 7:
-                content.body = "\(sub.name) (\(costStr)) renews in \(daysUntil) days."
-            default:
-                content.body = "\(sub.name) (\(costStr)) renews in \(daysUntil) days."
-            }
-            content.sound = .default
-
-            let trigger = makeTrigger()
-            let request = UNNotificationRequest(
-                identifier: dedupKey,
-                content: content,
-                trigger: trigger
-            )
-
-            center.add(request)
-            markSent(dedupKey)
-            break // Only send the most specific alert
+        let costStr = CurrencyFormatter.format(sub.cost, code: currencyCode)
+        if alert.daysBefore == 1 {
+            content.body = "\(sub.name) (\(costStr)) renews tomorrow."
+        } else {
+            content.body = "\(sub.name) (\(costStr)) renews in \(daysUntil) days."
         }
+        content.sound = .default
+
+        let trigger = makeTrigger()
+        let request = UNNotificationRequest(
+            identifier: alert.dedupKey,
+            content: content,
+            trigger: trigger
+        )
+
+        center.add(request)
+        markSent(alert.dedupKey)
     }
 
     // MARK: - Quiet Hours
@@ -191,22 +178,16 @@ final class NotificationService {
 
         let startHour = defaults.integer(forKey: "quietStartHour")
         let endHour = defaults.integer(forKey: "quietEndHour")
-        guard startHour != endHour else { return nil }
 
         let calendar = Calendar.current
         let now = Date()
         let currentHour = calendar.component(.hour, from: now)
 
-        let isInQuietHours: Bool
-        if startHour < endHour {
-            // Same-day range, e.g. 8..22
-            isInQuietHours = currentHour >= startHour && currentHour < endHour
-        } else {
-            // Overnight range, e.g. 22..8 (wraps past midnight)
-            isInQuietHours = currentHour >= startHour || currentHour < endHour
-        }
-
-        guard isInQuietHours else { return nil }
+        guard NotificationDecisions.isInQuietHours(
+            currentHour: currentHour,
+            startHour: startHour,
+            endHour: endHour
+        ) else { return nil }
 
         // Schedule for the end of quiet hours
         var deliveryComponents = calendar.dateComponents([.year, .month, .day], from: now)

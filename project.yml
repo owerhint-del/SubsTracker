@@ -17,10 +17,28 @@ schemes:
       targets:
         SubsTracker: all
         SubsTrackerWidget: all
+        SubsTrackerTests: [test]
     run:
       executable: SubsTracker
+    test:
+      targets:
+        - SubsTrackerTests
 
 targets:
+  SubsTrackerTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: SubsTrackerTests
+    dependencies:
+      - target: SubsTracker
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.owerhintdel.substracker.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SubsTracker.app/Contents/MacOS/SubsTracker"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
   SubsTracker:
     type: application
     platform: macOS

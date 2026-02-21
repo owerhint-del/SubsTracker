@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		01F3C02F3C274856D6D7CBF2 /* GmailModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C3CE2626BACA38FBB03607 /* GmailModels.swift */; };
 		03D5C2EAE60EEC4B9D772CF4 /* ScanProgressBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C73D081FD9C80B0E93B773 /* ScanProgressBanner.swift */; };
+		0C40B06FD1860993C330516E /* NotificationDecisions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11613571515348A97F3AA4DE /* NotificationDecisions.swift */; };
 		126750A0D1BEC6C998408E19 /* GmailSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A9F1A3A6E8DAA618381F6B /* GmailSettingsSection.swift */; };
 		1315238787131E3677A14D14 /* SubsTrackerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C320727B46B68A25DF5AF84 /* SubsTrackerWidget.swift */; };
 		160792F6A47211413C8E6A6F /* OpenAIUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A69423B0EF440E1CFE4D81 /* OpenAIUsageService.swift */; };
@@ -38,6 +39,7 @@
 		BCF783D6E502442254CE1B24 /* SubscriptionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15650DDA046EDBB37FC189E4 /* SubscriptionListView.swift */; };
 		C0BE01BEEA89FA02C727B51B /* Subscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC237E606F24637F9A601EE /* Subscription.swift */; };
 		C1F7DCBF4C6A8E78A693AFB0 /* SubscriptionRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1BC882FA3D1C05773EE54C /* SubscriptionRowView.swift */; };
+		CA578435421EE44DB986A888 /* NotificationDecisionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */; };
 		CBC654FE6C6A5191D71A3329 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B810032AFD162213C3010 /* CurrencyFormatter.swift */; };
 		CFFAE1525FB6CC6E88E08961 /* AppGroupConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A7A815CDC3778875CA65B3 /* AppGroupConstants.swift */; };
 		DA2979D9AB0642719EF2E19F /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B55B74D53AA2919E0C02778 /* ClaudeAPIService.swift */; };
@@ -58,6 +60,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 105137F5CED3D4359541B999;
 			remoteInfo = SubsTrackerWidget;
+		};
+		67D5BD506B6CE04908391EE4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47DE83BA614872FDEFBD647B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 711310EB5162190FEE60668B;
+			remoteInfo = SubsTracker;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -80,6 +89,7 @@
 		05571B43FD75A0147A5C1C19 /* GmailScanReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailScanReviewView.swift; sourceTree = "<group>"; };
 		05878010E0F383B6B8BC29A1 /* SubscriptionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionViewModel.swift; sourceTree = "<group>"; };
 		0CCEE6D100A11E5F433A4D30 /* OpenAIUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIUsageView.swift; sourceTree = "<group>"; };
+		11613571515348A97F3AA4DE /* NotificationDecisions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDecisions.swift; sourceTree = "<group>"; };
 		15650DDA046EDBB37FC189E4 /* SubscriptionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionListView.swift; sourceTree = "<group>"; };
 		1A1BC882FA3D1C05773EE54C /* SubscriptionRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionRowView.swift; sourceTree = "<group>"; };
 		2868D79781237129D353FFB5 /* ClaudeUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeUsageView.swift; sourceTree = "<group>"; };
@@ -91,10 +101,12 @@
 		5A48B9187892CFE047769A4F /* UsageRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageRecord.swift; sourceTree = "<group>"; };
 		5CEAE6B70AD9498CAD505117 /* SubsTrackerWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SubsTrackerWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E246A94F529EB9B6A017E3D /* UsageChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageChartView.swift; sourceTree = "<group>"; };
+		6519BC7AD1FAF0EDF4F98909 /* SubsTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SubsTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		657E213F8205572CB9698552 /* CodexLocalService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexLocalService.swift; sourceTree = "<group>"; };
 		6B3B538E45334B823AB53E3A /* Enums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enums.swift; sourceTree = "<group>"; };
 		6B55B74D53AA2919E0C02778 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
 		6C320727B46B68A25DF5AF84 /* SubsTrackerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsTrackerWidget.swift; sourceTree = "<group>"; };
+		6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDecisionsTests.swift; sourceTree = "<group>"; };
 		6F7181217A595C249F5060A1 /* SubsTrackerWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsTrackerWidgetBundle.swift; sourceTree = "<group>"; };
 		72A69423B0EF440E1CFE4D81 /* OpenAIUsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIUsageService.swift; sourceTree = "<group>"; };
 		784FD25611C07CA6E7E86088 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
@@ -141,6 +153,7 @@
 			children = (
 				A809DA2C230B1DEB4306FD3A /* Shared */,
 				DE3ABC72922CFFAAA4852B20 /* SubsTracker */,
+				535BC56D4C117365BA478569 /* SubsTrackerTests */,
 				7B3432F7C8806119CDF9AE27 /* SubsTrackerWidget */,
 				A5E7C48C34ADC7D3156CFF35 /* Products */,
 			);
@@ -171,6 +184,14 @@
 				D3B2537D3EEA1C72F95C43EC /* DashboardView.swift */,
 			);
 			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		535BC56D4C117365BA478569 /* SubsTrackerTests */ = {
+			isa = PBXGroup;
+			children = (
+				6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */,
+			);
+			path = SubsTrackerTests;
 			sourceTree = "<group>";
 		};
 		5F0ABCA3B6B6662E9AFBD070 /* Components */ = {
@@ -218,6 +239,7 @@
 			isa = PBXGroup;
 			children = (
 				3F8C17D06207EB3BFFE1F796 /* SubsTracker.app */,
+				6519BC7AD1FAF0EDF4F98909 /* SubsTrackerTests.xctest */,
 				5CEAE6B70AD9498CAD505117 /* SubsTrackerWidget.appex */,
 			);
 			name = Products;
@@ -250,6 +272,7 @@
 				3CED70A3E8F7F47053DC1117 /* GmailOAuthService.swift */,
 				90FF483C67D7FDBD986A4F2F /* GmailScannerService.swift */,
 				31108CA3ADA7590E9C6688CE /* KeychainService.swift */,
+				11613571515348A97F3AA4DE /* NotificationDecisions.swift */,
 				F0A8212ADFAC3215C2034562 /* NotificationService.swift */,
 				72A69423B0EF440E1CFE4D81 /* OpenAIUsageService.swift */,
 				784FD25611C07CA6E7E86088 /* SubscriptionManager.swift */,
@@ -333,6 +356,24 @@
 			productReference = 3F8C17D06207EB3BFFE1F796 /* SubsTracker.app */;
 			productType = "com.apple.product-type.application";
 		};
+		8EDC4BA2EEDE7BF4471FF1D5 /* SubsTrackerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DC4EEB5A31920B23B1F2E65D /* Build configuration list for PBXNativeTarget "SubsTrackerTests" */;
+			buildPhases = (
+				83333C3592D63D43732AA84A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BCDE9855ED1A6507BB456853 /* PBXTargetDependency */,
+			);
+			name = SubsTrackerTests;
+			packageProductDependencies = (
+			);
+			productName = SubsTrackerTests;
+			productReference = 6519BC7AD1FAF0EDF4F98909 /* SubsTrackerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -367,6 +408,7 @@
 			projectRoot = "";
 			targets = (
 				711310EB5162190FEE60668B /* SubsTracker */,
+				8EDC4BA2EEDE7BF4471FF1D5 /* SubsTrackerTests */,
 				105137F5CED3D4359541B999 /* SubsTrackerWidget */,
 			);
 		};
@@ -384,6 +426,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		83333C3592D63D43732AA84A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CA578435421EE44DB986A888 /* NotificationDecisionsTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D348060FB62FFC701D293D04 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -405,6 +455,7 @@
 				FB925EE4D086F6D15DFBC267 /* GmailScannerService.swift in Sources */,
 				126750A0D1BEC6C998408E19 /* GmailSettingsSection.swift in Sources */,
 				FC1A194150D32EC38C74063F /* KeychainService.swift in Sources */,
+				0C40B06FD1860993C330516E /* NotificationDecisions.swift in Sources */,
 				AEAA8290797F3E78AB1BAAAF /* NotificationService.swift in Sources */,
 				160792F6A47211413C8E6A6F /* OpenAIUsageService.swift in Sources */,
 				7DBFD58696FB6488E30C44A1 /* OpenAIUsageView.swift in Sources */,
@@ -441,6 +492,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		BCDE9855ED1A6507BB456853 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 711310EB5162190FEE60668B /* SubsTracker */;
+			targetProxy = 67D5BD506B6CE04908391EE4 /* PBXContainerItemProxy */;
+		};
 		CC7BC3283CCBF235E5BB610E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 105137F5CED3D4359541B999 /* SubsTrackerWidget */;
@@ -587,6 +643,40 @@
 			};
 			name = Debug;
 		};
+		4E9E64425A6809941D61075B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.owerhintdel.substracker.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SubsTracker.app/Contents/MacOS/SubsTracker";
+			};
+			name = Release;
+		};
+		70D69824D847E572E4BB7C12 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.owerhintdel.substracker.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SubsTracker.app/Contents/MacOS/SubsTracker";
+			};
+			name = Debug;
+		};
 		7F72E17CD8C74C19103C1227 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -688,6 +778,15 @@
 			buildConfigurations = (
 				4BCCB7C61CAD6CB56011281F /* Debug */,
 				2DB1DBB2393E3C82AF374E55 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DC4EEB5A31920B23B1F2E65D /* Build configuration list for PBXNativeTarget "SubsTrackerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				70D69824D847E572E4BB7C12 /* Debug */,
+				4E9E64425A6809941D61075B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
