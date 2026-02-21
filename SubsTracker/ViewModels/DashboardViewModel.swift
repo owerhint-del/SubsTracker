@@ -10,6 +10,10 @@ final class DashboardViewModel {
     var currentMonthUsage: [UsageRecord] = []
     var isLoading = false
 
+    // Budget settings — set by the View before loadData()
+    var monthlyBudget: Double = 0
+    var alertThresholdPercent: Double = 90
+
     // MARK: - Monthly Spend Engine
 
     /// Recurring subscriptions normalized to monthly cost
@@ -63,6 +67,68 @@ final class DashboardViewModel {
     /// Total cost of payments due in the next 30 days (per-charge, not normalized)
     var upcomingTotal: Double {
         upcomingPayments.reduce(0) { $0 + $1.subscription.cost }
+    }
+
+    // MARK: - Urgency-Grouped Upcoming Payments
+
+    /// Payments due within 3 days (urgent)
+    var urgentPayments: [(subscription: Subscription, daysUntil: Int)] {
+        upcomingPayments.filter { $0.daysUntil <= 3 }
+    }
+
+    /// Payments due in 4–7 days
+    var soonPayments: [(subscription: Subscription, daysUntil: Int)] {
+        upcomingPayments.filter { $0.daysUntil >= 4 && $0.daysUntil <= 7 }
+    }
+
+    /// Payments due in 8–30 days
+    var laterPayments: [(subscription: Subscription, daysUntil: Int)] {
+        upcomingPayments.filter { $0.daysUntil >= 8 }
+    }
+
+    // MARK: - Forecast Engine
+
+    /// Days elapsed since the start of the current month
+    var elapsedDaysInMonth: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+        return calendar.dateComponents([.day], from: monthStart, to: now).day ?? 0
+    }
+
+    /// Projected variable spend for the full month (linear extrapolation)
+    var projectedVariableSpend: Double {
+        let elapsed = elapsedDaysInMonth
+        guard elapsed > 0 else { return variableSpendCurrentMonth }
+        let calendar = Calendar.current
+        let now = Date()
+        let range = calendar.range(of: .day, in: .month, for: now)!
+        let daysInMonth = range.count
+        return (variableSpendCurrentMonth / Double(elapsed)) * Double(daysInMonth)
+    }
+
+    /// Forecasted total monthly spend: recurring + projected variable
+    var forecastedMonthlySpend: Double {
+        recurringMonthlySpend + projectedVariableSpend
+    }
+
+    /// True when the month is too young for a reliable forecast (< 5 days)
+    var forecastConfidenceIsLow: Bool {
+        elapsedDaysInMonth < 5
+    }
+
+    // MARK: - Budget Alert
+
+    /// Percentage of monthly budget used (nil when budget is disabled / 0)
+    var budgetUsedPercent: Double? {
+        guard monthlyBudget > 0 else { return nil }
+        return (totalMonthlySpend / monthlyBudget) * 100
+    }
+
+    /// True when current spend has crossed the alert threshold
+    var budgetExceeded: Bool {
+        guard let percent = budgetUsedPercent else { return false }
+        return percent >= alertThresholdPercent
     }
 
     // MARK: - Usage Stats

@@ -91,10 +91,10 @@ struct MediumWidgetView: View {
                     }
 
                     VStack(alignment: .leading) {
-                        Text("Subs")
+                        Text(signalTitle)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Text("\(data.subscriptionCount)")
+                        Text(signalValue)
                             .font(.caption)
                             .fontWeight(.semibold)
                     }
@@ -147,6 +147,26 @@ struct MediumWidgetView: View {
         .containerBackground(for: .widget) {
             Color(.windowBackgroundColor)
         }
+    }
+
+    // Signal line: next charge > budget % > sub count (fallback)
+    private var signalTitle: String {
+        if let days = data.nextChargeDaysUntil, days <= 7, data.nextChargeName != nil {
+            return "Next"
+        } else if let pct = data.budgetUsedPercent, pct > 0 {
+            return "Budget"
+        }
+        return "Subs"
+    }
+
+    private var signalValue: String {
+        if let days = data.nextChargeDaysUntil, days <= 7, let name = data.nextChargeName {
+            let short = name.count > 8 ? String(name.prefix(8)) + "…" : name
+            return "\(short) in \(days)d"
+        } else if let pct = data.budgetUsedPercent, pct > 0 {
+            return "\(Int(pct))%"
+        }
+        return "\(data.subscriptionCount)"
     }
 }
 

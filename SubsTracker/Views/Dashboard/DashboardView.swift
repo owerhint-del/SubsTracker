@@ -6,13 +6,15 @@ struct DashboardView: View {
     @State private var viewModel = DashboardViewModel()
     @StateObject private var manager = SubscriptionManager.shared
     @AppStorage("currencyCode") private var currencyCode = "USD"
-    @AppStorage("refreshInterval") private var refreshInterval = 30
     @AppStorage("lastRefreshAt") private var lastRefreshAt: Double = 0
+    @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
+    @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 header
+                budgetAlertBanner
                 CostPieChartView(data: viewModel.costByCategory)
                 upcomingPaymentsSection
                 recentUsageSection
@@ -25,7 +27,6 @@ struct DashboardView: View {
                 Button {
                     Task {
                         await manager.refreshAll(context: modelContext)
-                        viewModel.loadData(context: modelContext)
                         lastRefreshAt = Date().timeIntervalSince1970
                     }
                 } label: {
@@ -40,22 +41,21 @@ struct DashboardView: View {
             }
         }
         .onAppear {
-            // Always load local data
-            viewModel.loadData(context: modelContext)
+            // Pass budget settings to ViewModel
+            syncBudgetSettings()
 
-            // Auto-refresh only if interval has elapsed (0 = never)
-            if refreshInterval > 0 {
-                let elapsed = Date().timeIntervalSince1970 - lastRefreshAt
-                let intervalSeconds = Double(refreshInterval) * 60
-                if elapsed >= intervalSeconds {
-                    Task {
-                        await manager.refreshAll(context: modelContext)
-                        viewModel.loadData(context: modelContext)
-                        lastRefreshAt = Date().timeIntervalSince1970
-                    }
-                }
+            // Load local data only — auto-refresh is owned by ContentView
+            viewModel.loadData(context: modelContext)
+        }
+        .onChange(of: manager.isRefreshing) {
+            // Reload local data when a refresh (auto or manual) finishes
+            if !manager.isRefreshing {
+                syncBudgetSettings()
+                viewModel.loadData(context: modelContext)
             }
         }
+        .onChange(of: monthlyBudget) { syncBudgetSettings() }
+        .onChange(of: alertThresholdPercent) { syncBudgetSettings() }
     }
 
     // MARK: - Header Stats
@@ -90,9 +90,9 @@ struct DashboardView: View {
                 )
 
                 StatCard(
-                    title: "7-Day Tokens",
-                    value: formatTokenCount(viewModel.recentTotalTokens),
-                    icon: "cpu",
+                    title: viewModel.forecastConfidenceIsLow ? "Forecast (early est.)" : "Forecast",
+                    value: CurrencyFormatter.format(viewModel.forecastedMonthlySpend, code: currencyCode),
+                    icon: "chart.line.uptrend.xyaxis",
                     color: .green
                 )
             }
@@ -124,6 +124,34 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Budget Alert Banner
+
+    @ViewBuilder
+    private var budgetAlertBanner: some View {
+        if viewModel.budgetExceeded, let percent = viewModel.budgetUsedPercent {
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .font(.title3)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Budget alert: \(Int(percent))% of \(CurrencyFormatter.format(monthlyBudget, code: currencyCode))/mo used")
+                        .font(.callout)
+                        .fontWeight(.medium)
+
+                    Text("Projected \(CurrencyFormatter.format(viewModel.forecastedMonthlySpend, code: currencyCode)) by month end")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding()
+            .background(.orange.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
     // MARK: - Upcoming Payments
 
     private var upcomingPaymentsSection: some View {
@@ -150,36 +178,15 @@ struct DashboardView: View {
                 }
                 .padding(.vertical, 4)
             } else {
-                ForEach(viewModel.upcomingPayments, id: \.subscription.id) { item in
-                    HStack(spacing: 12) {
-                        Image(systemName: item.subscription.displayIcon)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 20)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.subscription.name)
-                                .fontWeight(.medium)
-                            Text(item.subscription.billing.displayName)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-
-                        Spacer()
-
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text(CurrencyFormatter.format(item.subscription.cost, code: currencyCode))
-                                .fontWeight(.semibold)
-
-                            Text(daysLabel(item.daysUntil))
-                                .font(.caption)
-                                .foregroundStyle(item.daysUntil <= 3 ? .red : .secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-
-                    if item.subscription.id != viewModel.upcomingPayments.last?.subscription.id {
-                        Divider()
-                    }
+                // Urgency-grouped display
+                if !viewModel.urgentPayments.isEmpty {
+                    urgencyGroup(title: "Urgent", color: .red, items: viewModel.urgentPayments)
+                }
+                if !viewModel.soonPayments.isEmpty {
+                    urgencyGroup(title: "This Week", color: .orange, items: viewModel.soonPayments)
+                }
+                if !viewModel.laterPayments.isEmpty {
+                    urgencyGroup(title: "Later", color: .secondary, items: viewModel.laterPayments)
                 }
             }
         }
@@ -188,12 +195,57 @@ struct DashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
+    private func urgencyGroup(title: String, color: Color, items: [(subscription: Subscription, daysUntil: Int)]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(color)
+                .padding(.top, 4)
+
+            ForEach(items, id: \.subscription.id) { item in
+                HStack(spacing: 12) {
+                    Image(systemName: item.subscription.displayIcon)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.subscription.name)
+                            .fontWeight(.medium)
+                        Text(item.subscription.billing.displayName)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(CurrencyFormatter.format(item.subscription.cost, code: currencyCode))
+                            .fontWeight(.semibold)
+
+                        Text(daysLabel(item.daysUntil))
+                            .font(.caption)
+                            .foregroundStyle(item.daysUntil <= 3 ? .red : .secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
     private func daysLabel(_ days: Int) -> String {
         switch days {
         case 0: return "Today"
         case 1: return "Tomorrow"
         default: return "in \(days) days"
         }
+    }
+
+    // MARK: - Helpers
+
+    private func syncBudgetSettings() {
+        viewModel.monthlyBudget = monthlyBudget
+        viewModel.alertThresholdPercent = Double(alertThresholdPercent)
     }
 
     // MARK: - Recent Usage

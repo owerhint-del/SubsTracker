@@ -4,6 +4,8 @@ struct SettingsView: View {
     @AppStorage("claudeDataPath") private var claudeDataPath = "~/.claude"
     @AppStorage("refreshInterval") private var refreshInterval = 30 // minutes
     @AppStorage("currencyCode") private var currencyCode = "USD"
+    @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
+    @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
 
     @State private var openAIKey = ""
     @State private var showingKey = false
@@ -105,6 +107,30 @@ struct SettingsView: View {
                     Text("1 hour").tag(60)
                     Text("Never").tag(0)
                 }
+            }
+
+            // Budget & Alerts
+            Section("Budget & Alerts") {
+                HStack {
+                    Text("Monthly Budget")
+                    Spacer()
+                    TextField("0", value: $monthlyBudget, format: .currency(code: currencyCode))
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                }
+
+                if monthlyBudget == 0 {
+                    Text("Set a budget to enable spend alerts")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Picker("Alert at", selection: $alertThresholdPercent) {
+                    Text("80%").tag(80)
+                    Text("90%").tag(90)
+                    Text("100%").tag(100)
+                }
+                .disabled(monthlyBudget <= 0)
             }
 
             // About

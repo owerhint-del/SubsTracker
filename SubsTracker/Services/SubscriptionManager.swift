@@ -50,12 +50,13 @@ final class SubscriptionManager: ObservableObject {
         )
         let subscriptions = (try? context.fetch(subDescriptor)) ?? []
 
-        let totalMonthly = subscriptions.reduce(0.0) { $0 + $1.monthlyCost }
+        let recurringMonthly = subscriptions.reduce(0.0) { $0 + $1.monthlyCost }
         let savedCurrency = UserDefaults.standard.string(forKey: "currencyCode") ?? "USD"
 
         // Build upcoming renewals sorted by nearest date
-        let upcoming = subscriptions
-            .filter { $0.renewalDate >= Date() }
+        let now = Date()
+        let upcomingSubs = subscriptions.filter { $0.renewalDate >= now }
+        let upcoming = upcomingSubs
             .prefix(3)
             .map { sub in
                 WidgetData.UpcomingRenewal(
@@ -66,14 +67,50 @@ final class SubscriptionManager: ObservableObject {
                 )
             }
 
+        // Next charge signal
+        let nextChargeName = upcomingSubs.first?.name
+        let nextChargeDaysUntil: Int? = upcomingSubs.first.map { sub in
+            Calendar.current.dateComponents([.day], from: now, to: sub.renewalDate).day ?? 0
+        }
+
+        // Variable spend for the current month
+        let calendar = Calendar.current
+        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+        let nextMonthStart = calendar.date(byAdding: .month, value: 1, to: monthStart)!
+        let monthUsageDescriptor = FetchDescriptor<UsageRecord>(
+            predicate: #Predicate<UsageRecord> { $0.date >= monthStart && $0.date < nextMonthStart }
+        )
+        let currentMonthUsage = (try? context.fetch(monthUsageDescriptor)) ?? []
+        let variableSpend = currentMonthUsage.compactMap(\.totalCost).reduce(0, +)
+
+        // Forecast: linear extrapolation of variable spend
+        let elapsedDays = calendar.dateComponents([.day], from: monthStart, to: now).day ?? 0
+        let daysInMonth = calendar.range(of: .day, in: .month, for: now)?.count ?? 30
+        let projectedVariable: Double
+        if elapsedDays > 0 {
+            projectedVariable = (variableSpend / Double(elapsedDays)) * Double(daysInMonth)
+        } else {
+            projectedVariable = variableSpend
+        }
+        let forecastedMonthly = recurringMonthly + projectedVariable
+
+        // Budget percent
+        let monthlyBudget = UserDefaults.standard.double(forKey: "monthlyBudget")
+        let totalMonthly = recurringMonthly + variableSpend
+        let budgetPct: Double? = monthlyBudget > 0 ? (totalMonthly / monthlyBudget) * 100 : nil
+
         let widgetData = WidgetData(
             totalMonthlyCost: totalMonthly,
-            totalAnnualCost: totalMonthly * 12,
+            totalAnnualCost: recurringMonthly * 12,
             subscriptionCount: subscriptions.count,
             recentTotalTokens: 0,
             currencyCode: savedCurrency,
-            lastUpdated: Date(),
-            upcomingRenewals: Array(upcoming)
+            lastUpdated: now,
+            upcomingRenewals: Array(upcoming),
+            nextChargeName: nextChargeName,
+            nextChargeDaysUntil: nextChargeDaysUntil,
+            budgetUsedPercent: budgetPct,
+            forecastedMonthlySpend: forecastedMonthly
         )
 
         widgetData.save()
