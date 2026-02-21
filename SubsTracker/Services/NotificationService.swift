@@ -15,7 +15,19 @@ final class NotificationService {
     // In-memory cache to avoid non-atomic UserDefaults read-modify-write races
     private var cachedSentKeys: Set<String>?
 
-    private init() {}
+    // Key used by @AppStorage in SettingsView — must use the same registration default
+    private let enabledKey = "notificationsEnabled"
+
+    private init() {
+        // Register the same default as @AppStorage("notificationsEnabled") in SettingsView.
+        // This ensures defaults.bool(forKey:) returns true on fresh install.
+        defaults.register(defaults: [enabledKey: true])
+    }
+
+    /// Whether notifications are enabled in user settings.
+    var isEnabled: Bool {
+        defaults.bool(forKey: enabledKey)
+    }
 
     // MARK: - Permission Handling
 
@@ -43,9 +55,11 @@ final class NotificationService {
         currencyCode: String
     ) async {
         // Check if notifications are enabled in settings
-        guard defaults.bool(forKey: "notificationsEnabled") else {
-            // Remove all pending notifications when disabled
+        guard isEnabled else {
+            // Remove all pending notifications and reset dedup keys
+            // so re-enabling sends fresh alerts instead of being blocked by stale keys
             center.removeAllPendingNotificationRequests()
+            clearSentKeys()
             return
         }
 
@@ -232,6 +246,12 @@ final class NotificationService {
     private func flushSentKeys() {
         guard let keys = cachedSentKeys else { return }
         defaults.set(Array(keys), forKey: sentKeysKey)
+    }
+
+    /// Clear all sent keys (used when notifications are toggled off).
+    private func clearSentKeys() {
+        cachedSentKeys = []
+        defaults.removeObject(forKey: sentKeysKey)
     }
 
     /// Prune old dedup keys that are no longer relevant.
