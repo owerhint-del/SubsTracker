@@ -3,41 +3,42 @@ import Charts
 
 struct OpenAIUsageView: View {
     @Bindable var viewModel: UsageViewModel
+    @AppStorage("currencyCode") private var currencyCode = "USD"
     @State private var showingAPIKeySheet = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                if !viewModel.hasOpenAIKey {
-                    // No API key — show setup prompt
-                    noAPIKeyView
-                } else {
-                    // Error state
-                    if let error = viewModel.openAIError {
-                        errorBanner(error)
-                    }
-
-                    // Loading
-                    if viewModel.isLoadingOpenAI {
-                        ProgressView("Fetching OpenAI usage...")
-                            .frame(maxWidth: .infinity, minHeight: 100)
-                    } else if viewModel.openAIDailyUsage.isEmpty {
-                        ContentUnavailableView(
-                            "No Usage Data",
-                            systemImage: "chart.bar",
-                            description: Text("Click Refresh to fetch usage data from OpenAI")
-                        )
-                    } else {
-                        // Summary
-                        summarySection
-
-                        // Token chart
-                        tokenChart
-
-                        // Daily breakdown table
-                        dailyBreakdown
+                // Codex CLI errors
+                if let error = viewModel.codexError {
+                    errorBanner(error) {
+                        Task { await viewModel.loadCodexData() }
                     }
                 }
+
+                // Codex CLI utilization (rate limits from most recent session)
+                codexUtilizationSection
+
+                // Codex CLI loading or content
+                if viewModel.isLoadingCodex {
+                    ProgressView("Loading Codex CLI data...")
+                        .frame(maxWidth: .infinity, minHeight: 100)
+                } else {
+                    // Codex summary stats
+                    codexSummarySection
+
+                    // Model breakdown
+                    codexModelBreakdownSection
+
+                    // Daily token chart (Codex)
+                    codexDailyTokenChart
+
+                    // Daily activity chart (Codex)
+                    codexDailyActivityChart
+                }
+
+                // API Usage section (needs API key)
+                apiUsageSection
             }
             .padding()
         }
@@ -45,11 +46,10 @@ struct OpenAIUsageView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    Task { await viewModel.loadOpenAIData() }
+                    refreshAll()
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .disabled(!viewModel.hasOpenAIKey || viewModel.isLoadingOpenAI)
             }
             ToolbarItem {
                 Button {
@@ -63,69 +63,286 @@ struct OpenAIUsageView: View {
             APIKeyEntrySheet()
         }
         .onAppear {
-            if viewModel.hasOpenAIKey {
-                Task { await viewModel.loadOpenAIData() }
+            refreshAll()
+        }
+    }
+
+    private func refreshAll() {
+        Task {
+            await viewModel.loadCodexData()
+        }
+        if viewModel.hasOpenAIKey {
+            Task { await viewModel.loadOpenAIData() }
+        }
+    }
+
+    // MARK: - Codex Utilization
+
+    @ViewBuilder
+    private var codexUtilizationSection: some View {
+        if let limits = viewModel.codexRateLimits {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
+                    Image(systemName: "terminal")
+                        .foregroundStyle(.green)
+                    Text("Codex CLI")
+                        .font(.headline)
+                    Spacer()
+                }
+
+                UtilizationBarView(
+                    title: "Session",
+                    utilization: limits.sessionUtilization,
+                    resetsAt: limits.sessionResetsAt,
+                    icon: "clock"
+                )
+
+                UtilizationBarView(
+                    title: "Weekly",
+                    utilization: limits.weeklyUtilization,
+                    resetsAt: limits.weeklyResetsAt,
+                    icon: "calendar"
+                )
+
+                if limits.hasCredits, let balance = limits.creditBalance {
+                    HStack(spacing: 6) {
+                        Image(systemName: "creditcard")
+                            .foregroundStyle(.blue)
+                            .font(.caption)
+                        Text("Credits: \(balance)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding()
+            .background(.background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - Codex Summary
+
+    @ViewBuilder
+    private var codexSummarySection: some View {
+        if let summary = viewModel.codexSummary, summary.totalSessions > 0 {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Codex CLI — Summary")
+                    .font(.headline)
+
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 12) {
+                    StatCard(
+                        title: "Sessions",
+                        value: "\(summary.totalSessions)",
+                        icon: "terminal",
+                        color: .green
+                    )
+                    StatCard(
+                        title: "Messages",
+                        value: formatTokenCount(summary.totalMessages),
+                        icon: "message",
+                        color: .purple
+                    )
+                    StatCard(
+                        title: "Total Tokens",
+                        value: formatTokenCount(viewModel.codexTotalTokens),
+                        icon: "cpu",
+                        color: .blue
+                    )
+                    StatCard(
+                        title: "Reasoning",
+                        value: formatTokenCount(viewModel.codexTotalReasoningTokens),
+                        icon: "brain",
+                        color: .orange
+                    )
+                }
             }
         }
     }
 
-    // MARK: - No API Key
+    // MARK: - Codex Model Breakdown
 
-    private var noAPIKeyView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "key.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+    @ViewBuilder
+    private var codexModelBreakdownSection: some View {
+        if !viewModel.codexModelNames.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Model Usage")
+                    .font(.headline)
 
-            Text("OpenAI API Key Required")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            Text("Add your OpenAI API key to fetch usage data automatically. You can find it at platform.openai.com.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-
-            Button("Add API Key") {
-                showingAPIKeySheet = true
+                ForEach(viewModel.codexModelNames, id: \.self) { modelName in
+                    if let usage = viewModel.codexModelUsage[modelName] {
+                        codexModelRow(name: modelName, usage: usage)
+                    }
+                }
             }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(40)
-    }
-
-    // MARK: - Summary
-
-    private var summarySection: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible()),
-            GridItem(.flexible()),
-            GridItem(.flexible())
-        ], spacing: 12) {
-            StatCard(
-                title: "Total Tokens",
-                value: formatTokenCount(viewModel.openAITotalTokens),
-                icon: "cpu",
-                color: .green
-            )
-            StatCard(
-                title: "Total Cost",
-                value: String(format: "$%.2f", viewModel.openAITotalCost),
-                icon: "dollarsign.circle",
-                color: .blue
-            )
-            StatCard(
-                title: "Days Tracked",
-                value: "\(viewModel.openAIDailyUsage.count)",
-                icon: "calendar",
-                color: .orange
-            )
+            .padding()
+            .background(.background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 
-    // MARK: - Token Chart
+    private func codexModelRow(name: String, usage: CodexModelUsage) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(viewModel.displayCodexModelName(name))
+                .font(.subheadline)
+                .fontWeight(.semibold)
 
-    private var tokenChart: some View {
+            HStack(spacing: 20) {
+                VStack(alignment: .leading) {
+                    Text("Input").font(.caption).foregroundStyle(.secondary)
+                    Text(formatTokenCount(usage.inputTokens))
+                        .font(.callout)
+                        .fontWeight(.medium)
+                }
+                VStack(alignment: .leading) {
+                    Text("Output").font(.caption).foregroundStyle(.secondary)
+                    Text(formatTokenCount(usage.outputTokens))
+                        .font(.callout)
+                        .fontWeight(.medium)
+                }
+                VStack(alignment: .leading) {
+                    Text("Cached").font(.caption).foregroundStyle(.secondary)
+                    Text(formatTokenCount(usage.cachedInputTokens))
+                        .font(.callout)
+                        .fontWeight(.medium)
+                }
+                VStack(alignment: .leading) {
+                    Text("Reasoning").font(.caption).foregroundStyle(.secondary)
+                    Text(formatTokenCount(usage.reasoningTokens))
+                        .font(.callout)
+                        .fontWeight(.medium)
+                }
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    // MARK: - Codex Charts
+
+    private var codexDailyTokenChart: some View {
+        let data = viewModel.codexDailyUsage.flatMap { daily -> [ChartDataPoint] in
+            guard let date = daily.parsedDate else { return [] }
+            return daily.tokensByModel.map { model, tokens in
+                ChartDataPoint(
+                    date: date,
+                    value: Double(tokens),
+                    label: viewModel.displayCodexModelName(model)
+                )
+            }
+        }
+
+        return TokenUsageChartView(data: data, title: "Codex — Daily Token Usage")
+    }
+
+    private var codexDailyActivityChart: some View {
+        let messageData = viewModel.codexDailyUsage.compactMap { daily -> ChartDataPoint? in
+            guard let date = daily.parsedDate else { return nil }
+            return ChartDataPoint(date: date, value: Double(daily.messageCount), label: "Messages")
+        }
+
+        let sessionData = viewModel.codexDailyUsage.compactMap { daily -> ChartDataPoint? in
+            guard let date = daily.parsedDate else { return nil }
+            return ChartDataPoint(date: date, value: Double(daily.sessionCount), label: "Sessions")
+        }
+
+        return ActivityChartView(data: sessionData + messageData, title: "Codex — Daily Activity")
+    }
+
+    // MARK: - API Usage Section
+
+    @ViewBuilder
+    private var apiUsageSection: some View {
+        Divider()
+            .padding(.vertical, 4)
+
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "network")
+                    .foregroundStyle(.blue)
+                Text("API Usage")
+                    .font(.headline)
+                Spacer()
+                if !viewModel.hasOpenAIKey {
+                    Button("Add API Key") {
+                        showingAPIKeySheet = true
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+
+            if !viewModel.hasOpenAIKey {
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.secondary)
+                    Text("Add your OpenAI API key to see API cost data from platform.openai.com")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                // API error
+                if let error = viewModel.openAIError {
+                    errorBanner(error) {
+                        Task { await viewModel.loadOpenAIData() }
+                    }
+                }
+
+                if viewModel.isLoadingOpenAI {
+                    ProgressView("Fetching API usage...")
+                        .frame(maxWidth: .infinity, minHeight: 60)
+                } else if viewModel.openAIDailyUsage.isEmpty {
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.secondary)
+                        Text("No API usage data found. Click Refresh to fetch.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    // API summary
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 12) {
+                        StatCard(
+                            title: "API Tokens",
+                            value: formatTokenCount(viewModel.openAITotalTokens),
+                            icon: "cpu",
+                            color: .green
+                        )
+                        StatCard(
+                            title: "API Cost",
+                            value: CurrencyFormatter.format(viewModel.openAITotalCost, code: currencyCode),
+                            icon: "dollarsign.circle",
+                            color: .blue
+                        )
+                        StatCard(
+                            title: "Days Tracked",
+                            value: "\(viewModel.openAIDailyUsage.count)",
+                            icon: "calendar",
+                            color: .orange
+                        )
+                    }
+
+                    // API token chart
+                    apiTokenChart
+
+                    // Daily breakdown
+                    apiDailyBreakdown
+                }
+            }
+        }
+    }
+
+    // MARK: - API Charts
+
+    private var apiTokenChart: some View {
         let data = viewModel.openAIDailyUsage.compactMap { daily -> ChartDataPoint? in
             guard let date = daily.parsedDate else { return nil }
             return ChartDataPoint(
@@ -135,14 +352,12 @@ struct OpenAIUsageView: View {
             )
         }
 
-        return TokenUsageChartView(data: data, title: "Daily Token Usage")
+        return TokenUsageChartView(data: data, title: "API — Daily Token Usage")
     }
 
-    // MARK: - Daily Breakdown
-
-    private var dailyBreakdown: some View {
+    private var apiDailyBreakdown: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Daily Breakdown")
+            Text("API — Daily Breakdown")
                 .font(.headline)
 
             ForEach(viewModel.openAIDailyUsage.prefix(14)) { daily in
@@ -162,7 +377,7 @@ struct OpenAIUsageView: View {
                         .font(.callout)
 
                     if let cost = daily.cost {
-                        Text(String(format: "$%.4f", cost))
+                        Text(CurrencyFormatter.format(cost, code: currencyCode))
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .frame(width: 80, alignment: .trailing)
@@ -177,20 +392,18 @@ struct OpenAIUsageView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: - Error
+    // MARK: - Error Banner
 
-    private func errorBanner(_ message: String) -> some View {
+    private func errorBanner(_ message: String, retry: @escaping () -> Void) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.yellow)
             Text(message)
                 .font(.callout)
             Spacer()
-            Button("Retry") {
-                Task { await viewModel.loadOpenAIData() }
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            Button("Retry") { retry() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
         }
         .padding()
         .background(.yellow.opacity(0.1))

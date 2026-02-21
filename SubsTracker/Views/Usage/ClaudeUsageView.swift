@@ -3,6 +3,7 @@ import Charts
 
 struct ClaudeUsageView: View {
     @Bindable var viewModel: UsageViewModel
+    @AppStorage("currencyCode") private var currencyCode = "USD"
 
     var body: some View {
         ScrollView {
@@ -11,6 +12,9 @@ struct ClaudeUsageView: View {
                 if let error = viewModel.claudeError {
                     errorBanner(error)
                 }
+
+                // Real-time utilization (from API)
+                utilizationSection
 
                 // Loading
                 if viewModel.isLoadingClaude {
@@ -36,14 +40,141 @@ struct ClaudeUsageView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    viewModel.loadClaudeData()
+                    refreshAll()
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
             }
         }
         .onAppear {
-            viewModel.loadClaudeData()
+            refreshAll()
+        }
+    }
+
+    private func refreshAll() {
+        viewModel.loadClaudeData()
+        Task {
+            await viewModel.loadClaudeAPIData()
+        }
+    }
+
+    // MARK: - Utilization
+
+    @ViewBuilder
+    private var utilizationSection: some View {
+        if viewModel.isLoadingClaudeAPI {
+            ProgressView("Loading live usage data...")
+                .frame(maxWidth: .infinity, minHeight: 60)
+                .padding()
+                .background(.background.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else if let usage = viewModel.claudeAPIUsage {
+            VStack(alignment: .leading, spacing: 16) {
+                // Plan badge
+                if let plan = viewModel.claudeAPIResult,
+                   case .success = plan {
+                    planBadge
+                }
+
+                // Session (5-hour) utilization
+                if let fiveHour = usage.fiveHour {
+                    UtilizationBarView(
+                        title: "Session",
+                        utilization: fiveHour.utilization,
+                        resetsAt: fiveHour.resetsAt,
+                        icon: "clock"
+                    )
+                }
+
+                // Weekly (7-day) utilization
+                if let sevenDay = usage.sevenDay {
+                    UtilizationBarView(
+                        title: "Weekly",
+                        utilization: sevenDay.utilization,
+                        resetsAt: sevenDay.resetsAt,
+                        icon: "calendar"
+                    )
+                }
+
+                // Sonnet weekly (if present)
+                if let sonnet = usage.sevenDaySonnet, sonnet.utilization > 0 {
+                    UtilizationBarView(
+                        title: "Sonnet Weekly",
+                        utilization: sonnet.utilization,
+                        resetsAt: sonnet.resetsAt,
+                        icon: "sparkles"
+                    )
+                }
+
+                // Opus weekly (if present)
+                if let opus = usage.sevenDayOpus, opus.utilization > 0 {
+                    UtilizationBarView(
+                        title: "Opus Weekly",
+                        utilization: opus.utilization,
+                        resetsAt: opus.resetsAt,
+                        icon: "star"
+                    )
+                }
+
+                // Extra usage credits
+                if let extra = usage.extraUsage, extra.isEnabled {
+                    extraUsageRow(extra)
+                }
+            }
+            .padding()
+            .background(.background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else if let statusMessage = viewModel.claudeAPIStatusMessage {
+            // API unavailable — show info text
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.secondary)
+                Text(statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(.background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private var planBadge: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "person.crop.circle.badge.checkmark")
+                .foregroundStyle(.blue)
+            Text("Live Usage")
+                .font(.headline)
+            Spacer()
+        }
+    }
+
+    private func extraUsageRow(_ extra: ClaudeExtraUsage) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Image(systemName: "creditcard")
+                    .foregroundStyle(.blue)
+                    .font(.caption)
+                Text("Extra Usage")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Spacer()
+                if extra.hasLimit {
+                    Text("\(CurrencyFormatter.format(extra.usedDollars, code: currencyCode)) / \(CurrencyFormatter.format(extra.monthlyLimitDollars, code: currencyCode))")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                } else {
+                    Text(CurrencyFormatter.format(extra.usedDollars, code: currencyCode))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+            }
+
+            if extra.hasLimit {
+                ProgressView(value: extra.usedDollars, total: extra.monthlyLimitDollars)
+                    .tint(.blue)
+            }
         }
     }
 

@@ -65,6 +65,11 @@ final class Subscription {
     }
 
     var displayIcon: String {
-        iconName ?? serviceProvider.iconSystemName
+        if let iconName { return iconName }
+        // For manually-added (Gmail-sourced) subs, use category icon instead of generic pencil
+        if serviceProvider == .manual {
+            return subscriptionCategory.iconSystemName
+        }
+        return serviceProvider.iconSystemName
     }
 }

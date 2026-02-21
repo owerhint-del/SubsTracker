@@ -43,7 +43,7 @@ struct SubsTrackerApp: App {
         #if os(macOS)
         Settings {
             SettingsView()
-                .frame(width: 500, height: 450)
+                .frame(width: 500, height: 650)
         }
         #endif
     }
@@ -55,6 +55,9 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var subscriptionVM: SubscriptionViewModel
     @StateObject private var manager = SubscriptionManager.shared
+    @AppStorage("currencyCode") private var currencyCode = "USD"
+    @AppStorage("refreshInterval") private var refreshInterval = 30
+    @AppStorage("lastRefreshAt") private var lastRefreshAt: Double = 0
 
     enum NavigationItem: Hashable {
         case dashboard
@@ -64,6 +67,7 @@ struct ContentView: View {
     }
 
     @State private var selectedNavItem: NavigationItem? = .dashboard
+    @State private var gmailScanVM = GmailScanViewModel()
 
     var body: some View {
         NavigationSplitView {
@@ -72,11 +76,27 @@ struct ContentView: View {
         } detail: {
             detailView
         }
+        .overlay(alignment: .bottom) {
+            if gmailScanVM.isScanning {
+                ScanProgressBanner(progress: gmailScanVM.currentProgress)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: gmailScanVM.isScanning)
         .onAppear {
             subscriptionVM.loadSubscriptions(context: modelContext)
-            // Auto-refresh on launch
+            manager.updateWidgetData(context: modelContext)
             Task {
-                await manager.refreshAll(context: modelContext)
+                // Respect refreshInterval: 0 = never auto-refresh
+                if refreshInterval > 0 {
+                    let elapsed = Date().timeIntervalSince1970 - lastRefreshAt
+                    let intervalSeconds = Double(refreshInterval) * 60
+                    if elapsed >= intervalSeconds {
+                        await manager.refreshAll(context: modelContext)
+                        subscriptionVM.loadSubscriptions(context: modelContext)
+                        lastRefreshAt = Date().timeIntervalSince1970
+                    }
+                }
+                await gmailScanVM.autoScanIfNeeded(context: modelContext)
                 subscriptionVM.loadSubscriptions(context: modelContext)
             }
         }
@@ -105,7 +125,7 @@ struct ContentView: View {
                         HStack {
                             Text(sub.name)
                             Spacer()
-                            Text(sub.monthlyCost, format: .currency(code: "USD"))
+                            Text(CurrencyFormatter.format(sub.monthlyCost, code: currencyCode))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

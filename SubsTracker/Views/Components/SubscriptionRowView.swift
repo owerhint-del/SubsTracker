@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SubscriptionRowView: View {
     let subscription: Subscription
+    @AppStorage("currencyCode") private var currencyCode = "USD"
 
     var body: some View {
         HStack(spacing: 12) {
@@ -26,7 +27,7 @@ struct SubscriptionRowView: View {
 
             // Cost and cycle
             VStack(alignment: .trailing, spacing: 2) {
-                Text(subscription.cost, format: .currency(code: "USD"))
+                Text(CurrencyFormatter.format(subscription.cost, code: currencyCode))
                     .font(.body)
                     .fontWeight(.semibold)
 

@@ -4,6 +4,7 @@ import SwiftData
 struct SubscriptionDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var subscription: Subscription
+    @AppStorage("currencyCode") private var currencyCode = "USD"
     @State private var isEditing = false
 
     // Editable fields
@@ -100,7 +101,7 @@ struct SubscriptionDetailView: View {
                 Form {
                     HStack {
                         Text("Cost")
-                        TextField("0.00", value: $editCost, format: .currency(code: "USD"))
+                        TextField("0.00", value: $editCost, format: .currency(code: currencyCode))
                             .multilineTextAlignment(.trailing)
                     }
                     Picker("Cycle", selection: $editBillingCycle) {
@@ -121,13 +122,13 @@ struct SubscriptionDetailView: View {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     StatCard(
                         title: "Cost",
-                        value: subscription.cost.formatted(.currency(code: "USD")),
+                        value: CurrencyFormatter.format(subscription.cost, code: currencyCode),
                         icon: "dollarsign.circle",
                         color: .blue
                     )
                     StatCard(
                         title: "Monthly Equiv.",
-                        value: subscription.monthlyCost.formatted(.currency(code: "USD")),
+                        value: CurrencyFormatter.format(subscription.monthlyCost, code: currencyCode),
                         icon: "calendar.badge.clock",
                         color: .purple
                     )

@@ -86,6 +86,11 @@ struct SettingsView: View {
                 }
             }
 
+            // Gmail Integration
+            Section("Gmail") {
+                GmailSettingsSection()
+            }
+
             // Preferences
             Section("Preferences") {
                 Picker("Currency", selection: $currencyCode) {

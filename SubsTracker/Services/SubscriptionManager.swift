@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import WidgetKit
 
 /// Coordinates data fetching and sync across all services
 @MainActor
@@ -34,7 +35,49 @@ final class SubscriptionManager: ObservableObject {
             await refreshOpenAIUsage(context: context)
         }
 
+        // Update widget data after refresh
+        updateWidgetData(context: context)
+
         isRefreshing = false
+    }
+
+    // MARK: - Widget Data
+
+    /// Build and save a WidgetData snapshot for the widget extension to display.
+    func updateWidgetData(context: ModelContext) {
+        let subDescriptor = FetchDescriptor<Subscription>(
+            sortBy: [SortDescriptor(\.renewalDate)]
+        )
+        let subscriptions = (try? context.fetch(subDescriptor)) ?? []
+
+        let totalMonthly = subscriptions.reduce(0.0) { $0 + $1.monthlyCost }
+        let savedCurrency = UserDefaults.standard.string(forKey: "currencyCode") ?? "USD"
+
+        // Build upcoming renewals sorted by nearest date
+        let upcoming = subscriptions
+            .filter { $0.renewalDate >= Date() }
+            .prefix(3)
+            .map { sub in
+                WidgetData.UpcomingRenewal(
+                    name: sub.name,
+                    iconName: sub.displayIcon,
+                    renewalDate: sub.renewalDate,
+                    monthlyCost: sub.monthlyCost
+                )
+            }
+
+        let widgetData = WidgetData(
+            totalMonthlyCost: totalMonthly,
+            totalAnnualCost: totalMonthly * 12,
+            subscriptionCount: subscriptions.count,
+            recentTotalTokens: 0,
+            currencyCode: savedCurrency,
+            lastUpdated: Date(),
+            upcomingRenewals: Array(upcoming)
+        )
+
+        widgetData.save()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: - Claude Usage Sync

@@ -4,6 +4,7 @@ struct AddSubscriptionView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Bindable var viewModel: SubscriptionViewModel
+    @AppStorage("currencyCode") private var currencyCode = "USD"
 
     @State private var name = ""
     @State private var provider: ServiceProvider = .manual
@@ -48,7 +49,7 @@ struct AddSubscriptionView: View {
                 Section("Billing") {
                     HStack {
                         Text("Cost")
-                        TextField("0.00", value: $cost, format: .currency(code: "USD"))
+                        TextField("0.00", value: $cost, format: .currency(code: currencyCode))
                             .multilineTextAlignment(.trailing)
                     }
                     Picker("Billing Cycle", selection: $billingCycle) {
