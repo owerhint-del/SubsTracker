@@ -45,6 +45,7 @@ struct SubsTrackerApp: App {
             SettingsView()
                 .frame(width: 500, height: 650)
         }
+        .modelContainer(sharedModelContainer)
         #endif
     }
 }
@@ -93,6 +94,7 @@ struct ContentView: View {
                 NotificationService.shared.pruneOldKeys()
 
                 // Respect refreshInterval: 0 = never auto-refresh
+                var didRefresh = false
                 if refreshInterval > 0 {
                     let elapsed = Date().timeIntervalSince1970 - lastRefreshAt
                     let intervalSeconds = Double(refreshInterval) * 60
@@ -100,12 +102,14 @@ struct ContentView: View {
                         await manager.refreshAll(context: modelContext)
                         subscriptionVM.loadSubscriptions(context: modelContext)
                         lastRefreshAt = Date().timeIntervalSince1970
+                        didRefresh = true
                     }
                 }
 
-                // Always schedule notifications from local data on startup,
-                // regardless of whether auto-refresh ran (handles interval-not-elapsed case)
-                await manager.scheduleNotifications(context: modelContext)
+                // Schedule notifications from local data only if refreshAll didn't already do it
+                if !didRefresh {
+                    await manager.scheduleNotifications(context: modelContext)
+                }
 
                 await gmailScanVM.autoScanIfNeeded(context: modelContext)
                 subscriptionVM.loadSubscriptions(context: modelContext)

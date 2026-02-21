@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("claudeDataPath") private var claudeDataPath = "~/.claude"
     @AppStorage("refreshInterval") private var refreshInterval = 30 // minutes
     @AppStorage("currencyCode") private var currencyCode = "USD"
@@ -196,16 +197,33 @@ struct SettingsView: View {
         .onAppear {
             openAIKey = KeychainService.shared.retrieve(key: KeychainService.openAIAPIKey) ?? ""
             Task {
-                let status = await NotificationService.shared.authorizationStatus()
-                switch status {
-                case .authorized: notificationPermission = "Allowed"
-                case .denied: notificationPermission = "Denied"
-                case .notDetermined: notificationPermission = "Not requested"
-                case .provisional: notificationPermission = "Provisional"
-                case .ephemeral: notificationPermission = "Ephemeral"
-                @unknown default: notificationPermission = "Unknown"
+                await refreshPermissionStatus()
+            }
+        }
+        .onChange(of: notificationsEnabled) {
+            Task {
+                if notificationsEnabled {
+                    // ON: request permission, then schedule from local data
+                    await NotificationService.shared.requestPermissionIfNeeded()
+                    await SubscriptionManager.shared.scheduleNotifications(context: modelContext)
+                    await refreshPermissionStatus()
+                } else {
+                    // OFF: immediately clear pending notifications and dedup keys
+                    NotificationService.shared.disableAndClear()
                 }
             }
+        }
+    }
+
+    private func refreshPermissionStatus() async {
+        let status = await NotificationService.shared.authorizationStatus()
+        switch status {
+        case .authorized: notificationPermission = "Allowed"
+        case .denied: notificationPermission = "Denied"
+        case .notDetermined: notificationPermission = "Not requested"
+        case .provisional: notificationPermission = "Provisional"
+        case .ephemeral: notificationPermission = "Ephemeral"
+        @unknown default: notificationPermission = "Unknown"
         }
     }
 

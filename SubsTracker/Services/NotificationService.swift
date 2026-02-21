@@ -248,10 +248,17 @@ final class NotificationService {
         defaults.set(Array(keys), forKey: sentKeysKey)
     }
 
-    /// Clear all sent keys (used when notifications are toggled off).
+    /// Clear all sent keys.
     private func clearSentKeys() {
         cachedSentKeys = []
         defaults.removeObject(forKey: sentKeysKey)
+    }
+
+    /// Immediately disable notifications: remove pending requests and reset dedup keys.
+    /// Called from Settings toggle for instant feedback.
+    func disableAndClear() {
+        center.removeAllPendingNotificationRequests()
+        clearSentKeys()
     }
 
     /// Prune old dedup keys that are no longer relevant.
