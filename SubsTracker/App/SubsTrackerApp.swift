@@ -86,6 +86,10 @@ struct ContentView: View {
             subscriptionVM.loadSubscriptions(context: modelContext)
             manager.updateWidgetData(context: modelContext)
             Task {
+                // Request notification permission (soft, no-ops if already decided)
+                await NotificationService.shared.requestPermissionIfNeeded()
+                NotificationService.shared.pruneOldKeys()
+
                 // Respect refreshInterval: 0 = never auto-refresh
                 if refreshInterval > 0 {
                     let elapsed = Date().timeIntervalSince1970 - lastRefreshAt
@@ -95,7 +99,11 @@ struct ContentView: View {
                         subscriptionVM.loadSubscriptions(context: modelContext)
                         lastRefreshAt = Date().timeIntervalSince1970
                     }
+                } else {
+                    // Even without auto-refresh, schedule notifications from local data
+                    await manager.scheduleNotifications(context: modelContext)
                 }
+
                 await gmailScanVM.autoScanIfNeeded(context: modelContext)
                 subscriptionVM.loadSubscriptions(context: modelContext)
             }

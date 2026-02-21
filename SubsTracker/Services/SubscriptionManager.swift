@@ -9,6 +9,7 @@ final class SubscriptionManager: ObservableObject {
 
     let claudeService = ClaudeCodeLocalService.shared
     let openAIService = OpenAIUsageService.shared
+    let notificationService = NotificationService.shared
 
     @Published var isRefreshing = false
     @Published var lastError: String?
@@ -38,7 +39,55 @@ final class SubscriptionManager: ObservableObject {
         // Update widget data after refresh
         updateWidgetData(context: context)
 
+        // Schedule notifications based on current data
+        await scheduleNotifications(context: context)
+
         isRefreshing = false
+    }
+
+    // MARK: - Notifications
+
+    /// Build snapshots from SwiftData models and pass to NotificationService.
+    func scheduleNotifications(context: ModelContext) async {
+        let subDescriptor = FetchDescriptor<Subscription>(
+            sortBy: [SortDescriptor(\.renewalDate)]
+        )
+        let subscriptions = (try? context.fetch(subDescriptor)) ?? []
+
+        // Build lightweight snapshots (safe to pass off MainActor)
+        let snapshots = subscriptions.map { sub in
+            SubscriptionSnapshot(
+                id: sub.id,
+                name: sub.name,
+                cost: sub.cost,
+                renewalDate: sub.renewalDate
+            )
+        }
+
+        // Compute current month spend for budget check
+        let calendar = Calendar.current
+        let now = Date()
+        let recurringMonthly = subscriptions.reduce(0.0) { $0 + $1.monthlyCost }
+        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
+        let nextMonthStart = calendar.date(byAdding: .month, value: 1, to: monthStart)!
+        let monthUsageDescriptor = FetchDescriptor<UsageRecord>(
+            predicate: #Predicate<UsageRecord> { $0.date >= monthStart && $0.date < nextMonthStart }
+        )
+        let currentMonthUsage = (try? context.fetch(monthUsageDescriptor)) ?? []
+        let variableSpend = currentMonthUsage.compactMap(\.totalCost).reduce(0, +)
+        let totalMonthly = recurringMonthly + variableSpend
+
+        let budget = UserDefaults.standard.double(forKey: "monthlyBudget")
+        let threshold = UserDefaults.standard.integer(forKey: "alertThresholdPercent")
+        let currency = UserDefaults.standard.string(forKey: "currencyCode") ?? "USD"
+
+        await notificationService.scheduleNotifications(
+            subscriptions: snapshots,
+            totalMonthlySpend: totalMonthly,
+            monthlyBudget: budget,
+            alertThresholdPercent: threshold > 0 ? threshold : 90,
+            currencyCode: currency
+        )
     }
 
     // MARK: - Widget Data

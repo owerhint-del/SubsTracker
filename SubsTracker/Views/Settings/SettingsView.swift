@@ -7,9 +7,16 @@ struct SettingsView: View {
     @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
     @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
 
+    // Notification settings
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = true
+    @AppStorage("quietHoursEnabled") private var quietHoursEnabled = false
+    @AppStorage("quietStartHour") private var quietStartHour = 22
+    @AppStorage("quietEndHour") private var quietEndHour = 8
+
     @State private var openAIKey = ""
     @State private var showingKey = false
     @State private var saveMessage: String?
+    @State private var notificationPermission: String = "Checking..."
 
     private let currencies = ["USD", "EUR", "GBP", "RUB", "JPY", "CAD", "AUD"]
 
@@ -133,6 +140,40 @@ struct SettingsView: View {
                 .disabled(monthlyBudget <= 0)
             }
 
+            // Notifications
+            Section("Notifications") {
+                Toggle("Enable notifications", isOn: $notificationsEnabled)
+
+                HStack {
+                    Text("System permission")
+                    Spacer()
+                    Text(notificationPermission)
+                        .foregroundStyle(.secondary)
+                }
+
+                if notificationsEnabled {
+                    Toggle("Quiet hours", isOn: $quietHoursEnabled)
+
+                    if quietHoursEnabled {
+                        Picker("From", selection: $quietStartHour) {
+                            ForEach(0..<24, id: \.self) { hour in
+                                Text(formatHour(hour)).tag(hour)
+                            }
+                        }
+
+                        Picker("Until", selection: $quietEndHour) {
+                            ForEach(0..<24, id: \.self) { hour in
+                                Text(formatHour(hour)).tag(hour)
+                            }
+                        }
+
+                        Text("Notifications during quiet hours will be delivered at \(formatHour(quietEndHour))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             // About
             Section("About") {
                 HStack {
@@ -154,7 +195,27 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .onAppear {
             openAIKey = KeychainService.shared.retrieve(key: KeychainService.openAIAPIKey) ?? ""
+            Task {
+                let status = await NotificationService.shared.authorizationStatus()
+                switch status {
+                case .authorized: notificationPermission = "Allowed"
+                case .denied: notificationPermission = "Denied"
+                case .notDetermined: notificationPermission = "Not requested"
+                case .provisional: notificationPermission = "Provisional"
+                case .ephemeral: notificationPermission = "Ephemeral"
+                @unknown default: notificationPermission = "Unknown"
+                }
+            }
         }
+    }
+
+    private func formatHour(_ hour: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        var components = DateComponents()
+        components.hour = hour
+        let date = Calendar.current.date(from: components) ?? Date()
+        return formatter.string(from: date)
     }
 
     private func saveOpenAIKey() {

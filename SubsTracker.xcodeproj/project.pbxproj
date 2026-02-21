@@ -33,6 +33,7 @@
 		928C676973927E4B54EACADB /* SubscriptionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05878010E0F383B6B8BC29A1 /* SubscriptionViewModel.swift */; };
 		A03FEE753AA00FCA5A842492 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3B538E45334B823AB53E3A /* Enums.swift */; };
 		A109D91D2142BF00AD67F113 /* GmailScanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02DA1558AC9AC72F22DBEE02 /* GmailScanViewModel.swift */; };
+		AEAA8290797F3E78AB1BAAAF /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A8212ADFAC3215C2034562 /* NotificationService.swift */; };
 		B251888E31FF411B1C77A26A /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF836713C899BECDB1461094 /* WidgetData.swift */; };
 		BCF783D6E502442254CE1B24 /* SubscriptionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15650DDA046EDBB37FC189E4 /* SubscriptionListView.swift */; };
 		C0BE01BEEA89FA02C727B51B /* Subscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC237E606F24637F9A601EE /* Subscription.swift */; };
@@ -112,6 +113,7 @@
 		DDE34E42C3005BDA8D004BF6 /* AddSubscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSubscriptionView.swift; sourceTree = "<group>"; };
 		E09DFFED04A2B76E346541A6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E20B810032AFD162213C3010 /* CurrencyFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyFormatter.swift; sourceTree = "<group>"; };
+		F0A8212ADFAC3215C2034562 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		F6A9F1A3A6E8DAA618381F6B /* GmailSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailSettingsSection.swift; sourceTree = "<group>"; };
 		FF836713C899BECDB1461094 /* WidgetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetData.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -248,6 +250,7 @@
 				3CED70A3E8F7F47053DC1117 /* GmailOAuthService.swift */,
 				90FF483C67D7FDBD986A4F2F /* GmailScannerService.swift */,
 				31108CA3ADA7590E9C6688CE /* KeychainService.swift */,
+				F0A8212ADFAC3215C2034562 /* NotificationService.swift */,
 				72A69423B0EF440E1CFE4D81 /* OpenAIUsageService.swift */,
 				784FD25611C07CA6E7E86088 /* SubscriptionManager.swift */,
 			);
@@ -402,6 +405,7 @@
 				FB925EE4D086F6D15DFBC267 /* GmailScannerService.swift in Sources */,
 				126750A0D1BEC6C998408E19 /* GmailSettingsSection.swift in Sources */,
 				FC1A194150D32EC38C74063F /* KeychainService.swift in Sources */,
+				AEAA8290797F3E78AB1BAAAF /* NotificationService.swift in Sources */,
 				160792F6A47211413C8E6A6F /* OpenAIUsageService.swift in Sources */,
 				7DBFD58696FB6488E30C44A1 /* OpenAIUsageView.swift in Sources */,
 				03D5C2EAE60EEC4B9D772CF4 /* ScanProgressBanner.swift in Sources */,
