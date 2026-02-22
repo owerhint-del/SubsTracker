@@ -19,6 +19,9 @@ final class DashboardViewModel {
     // Funding Planner settings — set by the View before loadData()
     var cashReserve: Double = 0
 
+    // Renewal projection setting — set by the View before loadData()
+    var autoCorrectRenewalDates: Bool = true
+
     // MARK: - Monthly Spend Engine
 
     /// Recurring subscriptions normalized to monthly cost
@@ -69,18 +72,42 @@ final class DashboardViewModel {
 
     // MARK: - Upcoming Payments
 
-    /// Subscriptions sorted by next renewal date (soonest first), limited to next 30 days
-    var upcomingPayments: [(subscription: Subscription, daysUntil: Int)] {
+    /// Subscriptions sorted by next renewal date (soonest first), limited to next 30 days.
+    /// When autoCorrectRenewalDates is enabled, stale dates are projected forward by billing cycle.
+    var upcomingPayments: [(subscription: Subscription, daysUntil: Int, projected: Bool)] {
+        let calendar = Calendar.current
         let now = Date()
-        let thirtyDaysOut = Calendar.current.date(byAdding: .day, value: 30, to: now)!
+        let thirtyDaysOut = calendar.date(byAdding: .day, value: 30, to: now)!
 
-        return subscriptions
-            .filter { $0.renewalDate >= now && $0.renewalDate <= thirtyDaysOut }
-            .sorted { $0.renewalDate < $1.renewalDate }
-            .map { sub in
-                let days = Calendar.current.dateComponents([.day], from: now, to: sub.renewalDate).day ?? 0
-                return (subscription: sub, daysUntil: days)
+        return subscriptions.compactMap { sub -> (subscription: Subscription, daysUntil: Int, projected: Bool)? in
+            let effectiveDate: Date
+            let wasProjected: Bool
+
+            if autoCorrectRenewalDates {
+                let projection = RenewalProjectionEngine.projectRenewalDate(
+                    from: sub.renewalDate, billingCycle: sub.billing, now: now
+                )
+                effectiveDate = projection.projectedDate
+                wasProjected = projection.wasStale
+            } else {
+                effectiveDate = calendar.startOfDay(for: sub.renewalDate)
+                wasProjected = false
             }
+
+            guard effectiveDate >= calendar.startOfDay(for: now) && effectiveDate <= thirtyDaysOut else { return nil }
+            let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: effectiveDate).day ?? 0
+            return (subscription: sub, daysUntil: days, projected: wasProjected)
+        }
+        .sorted { $0.daysUntil < $1.daysUntil }
+    }
+
+    /// Number of subscriptions with stale renewal dates that were projected forward.
+    var staleRenewalCount: Int {
+        guard autoCorrectRenewalDates else { return 0 }
+        return RenewalProjectionEngine.staleCount(
+            renewalDates: subscriptions.map { (date: $0.renewalDate, billingCycle: $0.billing) },
+            now: Date()
+        )
     }
 
     /// Total cost of payments due in the next 30 days (per-charge, not normalized)
@@ -91,17 +118,17 @@ final class DashboardViewModel {
     // MARK: - Urgency-Grouped Upcoming Payments
 
     /// Payments due within 3 days (urgent)
-    var urgentPayments: [(subscription: Subscription, daysUntil: Int)] {
+    var urgentPayments: [(subscription: Subscription, daysUntil: Int, projected: Bool)] {
         upcomingPayments.filter { $0.daysUntil <= 3 }
     }
 
     /// Payments due in 4–7 days
-    var soonPayments: [(subscription: Subscription, daysUntil: Int)] {
+    var soonPayments: [(subscription: Subscription, daysUntil: Int, projected: Bool)] {
         upcomingPayments.filter { $0.daysUntil >= 4 && $0.daysUntil <= 7 }
     }
 
     /// Payments due in 8–30 days
-    var laterPayments: [(subscription: Subscription, daysUntil: Int)] {
+    var laterPayments: [(subscription: Subscription, daysUntil: Int, projected: Bool)] {
         upcomingPayments.filter { $0.daysUntil >= 8 }
     }
 

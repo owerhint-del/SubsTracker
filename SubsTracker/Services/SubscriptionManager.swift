@@ -54,19 +54,30 @@ final class SubscriptionManager: ObservableObject {
         )
         let subscriptions = (try? context.fetch(subDescriptor)) ?? []
 
-        // Build lightweight snapshots (safe to pass off MainActor)
-        let snapshots = subscriptions.map { sub in
-            SubscriptionSnapshot(
-                id: sub.id,
-                name: sub.name,
-                cost: sub.cost,
-                renewalDate: sub.renewalDate
-            )
-        }
-
         // Compute current month spend for budget check
         let calendar = Calendar.current
         let now = Date()
+
+        // Build lightweight snapshots (safe to pass off MainActor)
+        // Project stale renewal dates forward when setting is enabled
+        let autoCorrect = UserDefaults.standard.object(forKey: "autoCorrectRenewalDates") as? Bool ?? true
+        var snapshots: [SubscriptionSnapshot] = []
+        for sub in subscriptions {
+            let effectiveDate: Date
+            if autoCorrect {
+                effectiveDate = RenewalProjectionEngine.projectRenewalDate(
+                    from: sub.renewalDate, billingCycle: sub.billing, now: now
+                ).projectedDate
+            } else {
+                effectiveDate = sub.renewalDate
+            }
+            snapshots.append(SubscriptionSnapshot(
+                id: sub.id,
+                name: sub.name,
+                cost: sub.cost,
+                renewalDate: effectiveDate
+            ))
+        }
         let recurringMonthly = subscriptions.reduce(0.0) { $0 + $1.monthlyCost }
         let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
         let nextMonthStart = calendar.date(byAdding: .month, value: 1, to: monthStart)!
@@ -144,24 +155,42 @@ final class SubscriptionManager: ObservableObject {
         let recurringMonthly = subscriptions.reduce(0.0) { $0 + $1.monthlyCost }
         let savedCurrency = UserDefaults.standard.string(forKey: "currencyCode") ?? "USD"
 
-        // Build upcoming renewals sorted by nearest date
+        // Build upcoming renewals sorted by nearest projected date
         let now = Date()
-        let upcomingSubs = subscriptions.filter { $0.renewalDate >= now }
-        let upcoming = upcomingSubs
-            .prefix(3)
-            .map { sub in
-                WidgetData.UpcomingRenewal(
-                    name: sub.name,
-                    iconName: sub.displayIcon,
-                    renewalDate: sub.renewalDate,
-                    monthlyCost: sub.monthlyCost
-                )
+        let autoCorrect = UserDefaults.standard.object(forKey: "autoCorrectRenewalDates") as? Bool ?? true
+
+        // Compute effective (projected) renewal dates for each subscription
+        let effectiveDates: [Date] = subscriptions.map { sub in
+            if autoCorrect {
+                return RenewalProjectionEngine.projectRenewalDate(
+                    from: sub.renewalDate, billingCycle: sub.billing, now: now
+                ).projectedDate
+            } else {
+                return sub.renewalDate
             }
+        }
+
+        // Build sorted indices of upcoming subscriptions (startOfDay so today's renewals are included)
+        let todayStart = Calendar.current.startOfDay(for: now)
+        let upcomingIndices = subscriptions.indices
+            .filter { effectiveDates[$0] >= todayStart }
+            .sorted { effectiveDates[$0] < effectiveDates[$1] }
+
+        var upcoming: [WidgetData.UpcomingRenewal] = []
+        for i in upcomingIndices.prefix(3) {
+            let sub = subscriptions[i]
+            upcoming.append(WidgetData.UpcomingRenewal(
+                name: sub.name,
+                iconName: sub.displayIcon,
+                renewalDate: effectiveDates[i],
+                monthlyCost: sub.monthlyCost
+            ))
+        }
 
         // Next charge signal
-        let nextChargeName = upcomingSubs.first?.name
-        let nextChargeDaysUntil: Int? = upcomingSubs.first.map { sub in
-            Calendar.current.dateComponents([.day], from: now, to: sub.renewalDate).day ?? 0
+        let nextChargeName: String? = upcomingIndices.first.map { subscriptions[$0].name }
+        let nextChargeDaysUntil: Int? = upcomingIndices.first.map { i in
+            Calendar.current.dateComponents([.day], from: now, to: effectiveDates[i]).day ?? 0
         }
 
         // Variable spend for the current month

@@ -10,6 +10,7 @@ struct DashboardView: View {
     @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
     @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
     @AppStorage("cashReserve") private var cashReserve: Double = 0
+    @AppStorage("autoCorrectRenewalDates") private var autoCorrectRenewalDates = true
 
     // Export state
     @State private var showExportSheet = false
@@ -96,6 +97,7 @@ struct DashboardView: View {
         .onChange(of: monthlyBudget) { syncBudgetSettings() }
         .onChange(of: alertThresholdPercent) { syncBudgetSettings() }
         .onChange(of: cashReserve) { syncBudgetSettings() }
+        .onChange(of: autoCorrectRenewalDates) { syncBudgetSettings() }
     }
 
     // MARK: - Header Stats
@@ -275,13 +277,26 @@ struct DashboardView: View {
                     urgencyGroup(title: "Later", color: .secondary, items: viewModel.laterPayments)
                 }
             }
+
+            // Stale date indicator
+            if viewModel.staleRenewalCount > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.clock")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                    Text("\(viewModel.staleRenewalCount) renewal date\(viewModel.staleRenewalCount == 1 ? "" : "s") projected forward")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 4)
+            }
         }
         .padding()
         .background(.background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    private func urgencyGroup(title: String, color: Color, items: [(subscription: Subscription, daysUntil: Int)]) -> some View {
+    private func urgencyGroup(title: String, color: Color, items: [(subscription: Subscription, daysUntil: Int, projected: Bool)]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption)
@@ -712,6 +727,7 @@ struct DashboardView: View {
         viewModel.monthlyBudget = monthlyBudget
         viewModel.alertThresholdPercent = Double(alertThresholdPercent)
         viewModel.cashReserve = cashReserve
+        viewModel.autoCorrectRenewalDates = autoCorrectRenewalDates
     }
 
     // MARK: - Recent Usage

@@ -9,6 +9,9 @@ struct SettingsView: View {
     @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
     @AppStorage("cashReserve") private var cashReserve: Double = 0
 
+    // Renewal projection
+    @AppStorage("autoCorrectRenewalDates") private var autoCorrectRenewalDates = true
+
     // Notification settings
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("quietHoursEnabled") private var quietHoursEnabled = false
@@ -159,6 +162,12 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                Toggle("Auto-correct stale renewal dates", isOn: $autoCorrectRenewalDates)
+
+                Text("Project past renewal dates forward for planning and notifications")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             // Notifications
