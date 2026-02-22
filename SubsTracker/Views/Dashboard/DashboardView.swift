@@ -20,6 +20,14 @@ struct DashboardView: View {
     @State private var exportCustomEnd = Date()
     @State private var exportStatus: ExportStatus = .idle
 
+    // One-time purchase state
+    @State private var showAddPurchaseSheet = false
+    @State private var newPurchaseName = ""
+    @State private var newPurchaseAmount: Double = 0
+    @State private var newPurchaseDate = Date()
+    @State private var newPurchaseCategory: SubscriptionCategory = .other
+    @State private var newPurchaseNotes = ""
+
     private enum ExportStatus: Equatable {
         case idle
         case exporting
@@ -33,8 +41,10 @@ struct DashboardView: View {
                 header
                 budgetAlertBanner
                 fundingPlannerSection
+                spendBreakdownSection
                 CostPieChartView(data: viewModel.costByCategory)
                 upcomingPaymentsSection
+                oneTimePurchasesSection
                 recentUsageSection
             }
             .padding()
@@ -127,29 +137,75 @@ struct DashboardView: View {
                 )
             }
 
-            // API spend breakdown (only shown when there is variable spend)
-            if viewModel.variableSpendCurrentMonth > 0 {
-                HStack(spacing: 16) {
-                    Label {
-                        Text("Recurring: \(CurrencyFormatter.format(viewModel.recurringMonthlySpend, code: currencyCode))")
-                            .font(.caption)
-                    } icon: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .foregroundStyle(.secondary)
-                    }
+        }
+    }
 
-                    Label {
-                        Text("API spend this month: \(CurrencyFormatter.format(viewModel.variableSpendCurrentMonth, code: currencyCode))")
-                            .font(.caption)
-                    } icon: {
-                        Image(systemName: "bolt")
-                            .foregroundStyle(.orange)
+    // MARK: - Spend Breakdown
+
+    @ViewBuilder
+    private var spendBreakdownSection: some View {
+        let hasMultipleChannels = viewModel.variableSpendCurrentMonth > 0 || viewModel.oneTimeSpendCurrentMonth > 0
+        if hasMultipleChannels {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Spend Breakdown")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 16) {
+                    breakdownItem(
+                        icon: "arrow.triangle.2.circlepath",
+                        label: "Recurring",
+                        value: viewModel.recurringMonthlySpend,
+                        color: .blue
+                    )
+                    if viewModel.variableSpendCurrentMonth > 0 {
+                        breakdownItem(
+                            icon: "bolt",
+                            label: "API Usage",
+                            value: viewModel.variableSpendCurrentMonth,
+                            color: .orange
+                        )
+                    }
+                    if viewModel.oneTimeSpendCurrentMonth > 0 {
+                        breakdownItem(
+                            icon: "cart",
+                            label: "One-time",
+                            value: viewModel.oneTimeSpendCurrentMonth,
+                            color: .purple
+                        )
                     }
 
                     Spacer()
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Total")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(CurrencyFormatter.format(viewModel.totalMonthlySpend, code: currencyCode))
+                            .font(.callout)
+                            .fontWeight(.semibold)
+                    }
                 }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
+            }
+            .padding()
+            .background(.background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private func breakdownItem(icon: String, label: String, value: Double, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .font(.caption)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text(CurrencyFormatter.format(value, code: currencyCode))
+                    .font(.caption)
+                    .fontWeight(.medium)
             }
         }
     }
@@ -304,8 +360,15 @@ struct DashboardView: View {
                     )
 
                     fundingStatRow(
-                        title: "Your Reserve",
-                        value: CurrencyFormatter.format(cashReserve, code: currencyCode),
+                        title: viewModel.oneTimeSpendCurrentMonth > 0 ? "Effective Reserve" : "Your Reserve",
+                        value: CurrencyFormatter.format(
+                            OneTimePurchaseEngine.effectiveReserve(
+                                cashReserve: cashReserve,
+                                purchases: viewModel.purchaseSnapshots,
+                                now: Date()
+                            ),
+                            code: currencyCode
+                        ),
                         icon: "wallet.bifold",
                         color: .green
                     )
@@ -392,6 +455,155 @@ struct DashboardView: View {
         .padding(10)
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - One-Time Purchases
+
+    private var oneTimePurchasesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("One-Time Purchases")
+                    .font(.headline)
+                Spacer()
+                if viewModel.oneTimeSpendCurrentMonth > 0 {
+                    Text(CurrencyFormatter.format(viewModel.oneTimeSpendCurrentMonth, code: currencyCode))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.purple)
+                }
+                Button {
+                    resetPurchaseForm()
+                    showAddPurchaseSheet = true
+                } label: {
+                    Label("Add", systemImage: "plus.circle")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+            }
+
+            let cal = Calendar.current
+            let now = Date()
+            let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now))!
+            let nextMonthStart = cal.date(byAdding: .month, value: 1, to: monthStart)!
+            let currentMonthPurchases = viewModel.oneTimePurchases.filter {
+                $0.date >= monthStart && $0.date < nextMonthStart
+            }
+
+            if currentMonthPurchases.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "cart")
+                        .foregroundStyle(.secondary)
+                    Text("No one-time purchases this month")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            } else {
+                ForEach(currentMonthPurchases, id: \.id) { purchase in
+                    HStack(spacing: 12) {
+                        Image(systemName: purchase.purchaseCategory.iconSystemName)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(purchase.name)
+                                .fontWeight(.medium)
+                            Text(purchase.date, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+
+                        Spacer()
+
+                        Text(CurrencyFormatter.format(purchase.amount, code: currencyCode))
+                            .fontWeight(.semibold)
+                    }
+                    .padding(.vertical, 4)
+                    .contextMenu {
+                        Button("Delete", role: .destructive) {
+                            deletePurchase(purchase)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .sheet(isPresented: $showAddPurchaseSheet) {
+            addPurchaseSheet
+        }
+    }
+
+    private var addPurchaseSheet: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button("Cancel") { showAddPurchaseSheet = false }
+                Spacer()
+                Text("Add One-Time Purchase")
+                    .font(.headline)
+                Spacer()
+                Button("Save") { savePurchase() }
+                    .disabled(newPurchaseName.isEmpty || newPurchaseAmount <= 0)
+                    .keyboardShortcut(.return, modifiers: .command)
+            }
+            .padding()
+
+            Divider()
+
+            Form {
+                Section("Details") {
+                    TextField("Name (e.g., API Credits)", text: $newPurchaseName)
+                    HStack {
+                        Text("Amount")
+                        TextField("0.00", value: $newPurchaseAmount, format: .currency(code: currencyCode))
+                            .multilineTextAlignment(.trailing)
+                    }
+                    DatePicker("Date", selection: $newPurchaseDate, displayedComponents: .date)
+                    Picker("Category", selection: $newPurchaseCategory) {
+                        ForEach(SubscriptionCategory.allCases) { c in
+                            Label(c.rawValue, systemImage: c.iconSystemName).tag(c)
+                        }
+                    }
+                }
+
+                Section("Notes") {
+                    TextEditor(text: $newPurchaseNotes)
+                        .frame(height: 50)
+                }
+            }
+            .formStyle(.grouped)
+        }
+        .frame(width: 420, height: 400)
+    }
+
+    private func savePurchase() {
+        let purchase = OneTimePurchase(
+            name: newPurchaseName,
+            amount: newPurchaseAmount,
+            date: newPurchaseDate,
+            category: newPurchaseCategory,
+            notes: newPurchaseNotes.isEmpty ? nil : newPurchaseNotes
+        )
+        modelContext.insert(purchase)
+        try? modelContext.save()
+        viewModel.loadData(context: modelContext)
+        showAddPurchaseSheet = false
+    }
+
+    private func deletePurchase(_ purchase: OneTimePurchase) {
+        modelContext.delete(purchase)
+        try? modelContext.save()
+        viewModel.loadData(context: modelContext)
+    }
+
+    private func resetPurchaseForm() {
+        newPurchaseName = ""
+        newPurchaseAmount = 0
+        newPurchaseDate = Date()
+        newPurchaseCategory = .other
+        newPurchaseNotes = ""
     }
 
     // MARK: - Export Sheet

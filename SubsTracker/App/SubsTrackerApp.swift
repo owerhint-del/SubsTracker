@@ -9,7 +9,8 @@ struct SubsTrackerApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Subscription.self,
-            UsageRecord.self
+            UsageRecord.self,
+            OneTimePurchase.self
         ])
         let modelConfiguration = ModelConfiguration(
             schema: schema,

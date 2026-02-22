@@ -16,6 +16,15 @@ enum FinanceExportEngine {
         let notes: String?
     }
 
+    /// Lightweight one-time purchase snapshot for export.
+    struct ExportOneTimePurchase {
+        let name: String
+        let amount: Double
+        let date: Date
+        let category: SubscriptionCategory
+        let notes: String?
+    }
+
     /// Lightweight usage record snapshot for export.
     struct ExportUsageRecord {
         let date: Date
@@ -38,12 +47,14 @@ enum FinanceExportEngine {
     struct ExportSummary {
         let recurringMonthlySpend: Double
         let variableSpend: Double
+        let oneTimeSpend: Double
         let totalMonthlySpend: Double
         let fundingRequired30d: Double
         let shortfall: Double
         let depletionDate: Date?
         let subscriptionCount: Int
         let usageRecordCount: Int
+        let oneTimePurchaseCount: Int
     }
 
     /// Complete export payload — ready to serialize to CSV or JSON.
@@ -51,6 +62,7 @@ enum FinanceExportEngine {
         let summary: ExportSummary
         let subscriptions: [ExportSubscription]
         let usageRecords: [ExportUsageRecord]
+        let oneTimePurchases: [ExportOneTimePurchase]
         let period: ExportPeriod
         let generatedAt: Date
         let currencyCode: String
@@ -90,12 +102,14 @@ enum FinanceExportEngine {
     static func computeSummary(
         subscriptions: [ExportSubscription],
         usageRecords: [ExportUsageRecord],
+        oneTimePurchases: [ExportOneTimePurchase] = [],
         cashReserve: Double,
         now: Date
     ) -> ExportSummary {
         let recurring = subscriptions.reduce(0.0) { $0 + $1.cost * $1.billingCycle.monthlyCostMultiplier }
         let variable = usageRecords.reduce(0.0) { $0 + $1.cost }
-        let total = recurring + variable
+        let oneTime = oneTimePurchases.reduce(0.0) { $0 + $1.amount }
+        let total = recurring + variable + oneTime
 
         // Use FundingPlannerEngine for projected charges
         let plannerSubs = subscriptions.map {
@@ -122,12 +136,14 @@ enum FinanceExportEngine {
         return ExportSummary(
             recurringMonthlySpend: recurring,
             variableSpend: variable,
+            oneTimeSpend: oneTime,
             totalMonthlySpend: total,
             fundingRequired30d: result.requiredNext30Days,
             shortfall: result.shortfall,
             depletionDate: result.depletionDate,
             subscriptionCount: subscriptions.count,
-            usageRecordCount: usageRecords.count
+            usageRecordCount: usageRecords.count,
+            oneTimePurchaseCount: oneTimePurchases.count
         )
     }
 
@@ -135,17 +151,20 @@ enum FinanceExportEngine {
     static func buildPayload(
         subscriptions: [ExportSubscription],
         usageRecords: [ExportUsageRecord],
+        oneTimePurchases: [ExportOneTimePurchase] = [],
         period: ExportPeriod,
         cashReserve: Double,
         currencyCode: String,
         now: Date
     ) -> ExportPayload {
-        // Filter usage records to period
-        let filtered = usageRecords.filter { $0.date >= period.start && $0.date < period.end }
+        // Filter usage records and one-time purchases to period
+        let filteredUsage = usageRecords.filter { $0.date >= period.start && $0.date < period.end }
+        let filteredPurchases = oneTimePurchases.filter { $0.date >= period.start && $0.date < period.end }
 
         let summary = computeSummary(
             subscriptions: subscriptions,
-            usageRecords: filtered,
+            usageRecords: filteredUsage,
+            oneTimePurchases: filteredPurchases,
             cashReserve: cashReserve,
             now: now
         )
@@ -153,7 +172,8 @@ enum FinanceExportEngine {
         return ExportPayload(
             summary: summary,
             subscriptions: subscriptions,
-            usageRecords: filtered,
+            usageRecords: filteredUsage,
+            oneTimePurchases: filteredPurchases,
             period: period,
             generatedAt: now,
             currencyCode: currencyCode
@@ -188,8 +208,14 @@ enum FinanceExportEngine {
         if let depletion = payload.summary.depletionDate {
             lines.append("Depletion Date,\(df.string(from: depletion))")
         }
+        if payload.summary.oneTimeSpend > 0 {
+            lines.append("One-Time Spend (period),\(formatCSVNumber(payload.summary.oneTimeSpend))")
+        }
         lines.append("Subscription Count,\(payload.summary.subscriptionCount)")
         lines.append("Usage Record Count,\(payload.summary.usageRecordCount)")
+        if payload.summary.oneTimePurchaseCount > 0 {
+            lines.append("One-Time Purchase Count,\(payload.summary.oneTimePurchaseCount)")
+        }
         lines.append("")
 
         // Subscriptions
@@ -199,6 +225,16 @@ enum FinanceExportEngine {
             let monthlyCost = sub.cost * sub.billingCycle.monthlyCostMultiplier
             let notes = escapeCSV(sub.notes ?? "")
             lines.append("\(escapeCSV(sub.name)),\(formatCSVNumber(sub.cost)),\(sub.billingCycle.displayName),\(formatCSVNumber(monthlyCost)),\(sub.category.rawValue),\(df.string(from: sub.renewalDate)),\(notes)")
+        }
+
+        // One-Time Purchases
+        if !payload.oneTimePurchases.isEmpty {
+            lines.append("")
+            lines.append("ONE-TIME PURCHASES")
+            lines.append("Date,Name,Amount,Category,Notes")
+            for p in payload.oneTimePurchases.sorted(by: { $0.date < $1.date }) {
+                lines.append("\(df.string(from: p.date)),\(escapeCSV(p.name)),\(formatCSVNumber(p.amount)),\(p.category.rawValue),\(escapeCSV(p.notes ?? ""))")
+            }
         }
 
         // Usage Records (optional)
@@ -237,8 +273,10 @@ enum FinanceExportEngine {
             "total_monthly_spend": roundToTwoCents(payload.summary.totalMonthlySpend),
             "funding_required_30d": roundToTwoCents(payload.summary.fundingRequired30d),
             "shortfall": roundToTwoCents(payload.summary.shortfall),
+            "one_time_spend": roundToTwoCents(payload.summary.oneTimeSpend),
             "subscription_count": payload.summary.subscriptionCount,
-            "usage_record_count": payload.summary.usageRecordCount
+            "usage_record_count": payload.summary.usageRecordCount,
+            "one_time_purchase_count": payload.summary.oneTimePurchaseCount
         ]
         if let depletion = payload.summary.depletionDate {
             summaryDict["depletion_date"] = df.string(from: depletion)
@@ -259,6 +297,22 @@ enum FinanceExportEngine {
                 dict["notes"] = notes
             }
             return dict
+        }
+
+        // One-time purchases
+        if !payload.oneTimePurchases.isEmpty {
+            json["one_time_purchases"] = payload.oneTimePurchases.sorted(by: { $0.date < $1.date }).map { p -> [String: Any] in
+                var dict: [String: Any] = [
+                    "date": df.string(from: p.date),
+                    "name": p.name,
+                    "amount": roundToTwoCents(p.amount),
+                    "category": p.category.rawValue
+                ]
+                if let notes = p.notes, !notes.isEmpty {
+                    dict["notes"] = notes
+                }
+                return dict
+            }
         }
 
         // Usage records (optional)

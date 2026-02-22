@@ -67,6 +67,19 @@ enum FinanceExportService {
         }
     }
 
+    /// Converts SwiftData OneTimePurchase models to export-safe structs.
+    static func extractOneTimePurchases(_ purchases: [OneTimePurchase]) -> [FinanceExportEngine.ExportOneTimePurchase] {
+        purchases.map { p in
+            FinanceExportEngine.ExportOneTimePurchase(
+                name: p.name,
+                amount: p.amount,
+                date: p.date,
+                category: p.purchaseCategory,
+                notes: p.notes
+            )
+        }
+    }
+
     /// Converts SwiftData UsageRecord models to export-safe structs.
     /// Excludes records without a cost (flat-rate subs like Claude Code Max).
     static func extractUsageRecords(_ records: [UsageRecord]) -> [FinanceExportEngine.ExportUsageRecord] {
@@ -124,10 +137,14 @@ enum FinanceExportService {
         let usageDescriptor = FetchDescriptor<UsageRecord>(sortBy: [SortDescriptor(\.date)])
         let usageRecords = (try? context.fetch(usageDescriptor)) ?? []
 
+        let purchaseDescriptor = FetchDescriptor<OneTimePurchase>(sortBy: [SortDescriptor(\.date)])
+        let purchases = (try? context.fetch(purchaseDescriptor)) ?? []
+
         let exportSubs = extractSubscriptions(subscriptions)
         let exportUsage = extractUsageRecords(usageRecords)
+        let exportPurchases = extractOneTimePurchases(purchases)
 
-        if exportSubs.isEmpty && exportUsage.isEmpty {
+        if exportSubs.isEmpty && exportUsage.isEmpty && exportPurchases.isEmpty {
             throw ExportError.noData
         }
 
@@ -135,6 +152,7 @@ enum FinanceExportService {
         let payload = FinanceExportEngine.buildPayload(
             subscriptions: exportSubs,
             usageRecords: exportUsage,
+            oneTimePurchases: exportPurchases,
             period: period,
             cashReserve: cashReserve,
             currencyCode: currencyCode,

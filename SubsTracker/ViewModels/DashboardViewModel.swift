@@ -9,6 +9,7 @@ final class DashboardViewModel {
     var recentUsage: [UsageRecord] = []
     var currentMonthUsage: [UsageRecord] = []
     var last30DaysUsage: [UsageRecord] = []
+    var oneTimePurchases: [OneTimePurchase] = []
     var isLoading = false
 
     // Budget settings — set by the View before loadData()
@@ -30,9 +31,23 @@ final class DashboardViewModel {
         currentMonthUsage.compactMap(\.totalCost).reduce(0, +)
     }
 
-    /// Combined monthly spend: recurring + variable API usage
+    /// One-time purchase snapshots for engine calculations
+    var purchaseSnapshots: [OneTimePurchaseEngine.PurchaseSnapshot] {
+        oneTimePurchases.map {
+            OneTimePurchaseEngine.PurchaseSnapshot(
+                name: $0.name, amount: $0.amount, date: $0.date, category: $0.purchaseCategory
+            )
+        }
+    }
+
+    /// One-time spend for the current calendar month
+    var oneTimeSpendCurrentMonth: Double {
+        OneTimePurchaseEngine.currentMonthTotal(purchaseSnapshots, now: Date())
+    }
+
+    /// Combined monthly spend: recurring + variable API usage + one-time purchases
     var totalMonthlySpend: Double {
-        recurringMonthlySpend + variableSpendCurrentMonth
+        recurringMonthlySpend + variableSpendCurrentMonth + oneTimeSpendCurrentMonth
     }
 
     var totalAnnualCost: Double {
@@ -160,11 +175,18 @@ final class DashboardViewModel {
             daysOfData = 0
         }
 
+        // Deduct recent one-time purchases from effective reserve
+        let effectiveReserve = OneTimePurchaseEngine.effectiveReserve(
+            cashReserve: cashReserve,
+            purchases: purchaseSnapshots,
+            now: now
+        )
+
         return FundingPlannerEngine.calculate(
             subscriptions: plannerSubs,
             usageCosts: usageCosts,
             usageDaysOfData: daysOfData,
-            cashReserve: cashReserve,
+            cashReserve: effectiveReserve,
             now: now
         )
     }
@@ -212,6 +234,12 @@ final class DashboardViewModel {
             predicate: #Predicate<UsageRecord> { $0.date >= thirtyDaysAgo }
         )
         last30DaysUsage = (try? context.fetch(last30Descriptor)) ?? []
+
+        // Load all one-time purchases (filtering is done by the engine)
+        let purchaseDescriptor = FetchDescriptor<OneTimePurchase>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        oneTimePurchases = (try? context.fetch(purchaseDescriptor)) ?? []
 
         isLoading = false
     }
