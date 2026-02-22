@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("currencyCode") private var currencyCode = "USD"
     @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
     @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
+    @AppStorage("cashReserve") private var cashReserve: Double = 0
 
     // Notification settings
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
@@ -140,6 +141,24 @@ struct SettingsView: View {
                     Text("100%").tag(100)
                 }
                 .disabled(monthlyBudget <= 0)
+
+                HStack {
+                    Text("Cash Reserve")
+                    Spacer()
+                    TextField("0", value: $cashReserve, format: .currency(code: currencyCode))
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
+                }
+
+                if cashReserve > 0 {
+                    Text("Funding Planner will show if your reserve covers the next 30 days")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Set a cash reserve to enable the Funding Planner")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             // Notifications

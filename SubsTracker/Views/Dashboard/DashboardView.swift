@@ -9,12 +9,14 @@ struct DashboardView: View {
     @AppStorage("lastRefreshAt") private var lastRefreshAt: Double = 0
     @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
     @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
+    @AppStorage("cashReserve") private var cashReserve: Double = 0
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 header
                 budgetAlertBanner
+                fundingPlannerSection
                 CostPieChartView(data: viewModel.costByCategory)
                 upcomingPaymentsSection
                 recentUsageSection
@@ -56,6 +58,7 @@ struct DashboardView: View {
         }
         .onChange(of: monthlyBudget) { syncBudgetSettings() }
         .onChange(of: alertThresholdPercent) { syncBudgetSettings() }
+        .onChange(of: cashReserve) { syncBudgetSettings() }
     }
 
     // MARK: - Header Stats
@@ -241,11 +244,135 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Funding Planner
+
+    @ViewBuilder
+    private var fundingPlannerSection: some View {
+        if cashReserve > 0 || viewModel.fundingPlannerResult.requiredNext30Days > 0 {
+            let result = viewModel.fundingPlannerResult
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "banknote")
+                        .foregroundStyle(.teal)
+                    Text("Funding Planner")
+                        .font(.headline)
+                    if result.lowConfidence {
+                        Text("(limited data)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("Next 30 days")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    fundingStatRow(
+                        title: "Required",
+                        value: CurrencyFormatter.format(result.requiredNext30Days, code: currencyCode),
+                        icon: "arrow.down.circle",
+                        color: .blue
+                    )
+
+                    fundingStatRow(
+                        title: "Your Reserve",
+                        value: CurrencyFormatter.format(cashReserve, code: currencyCode),
+                        icon: "wallet.bifold",
+                        color: .green
+                    )
+                }
+
+                if result.shortfall > 0 {
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Shortfall: \(CurrencyFormatter.format(result.shortfall, code: currencyCode))")
+                                .font(.callout)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.red)
+
+                            if let depletion = result.depletionDate {
+                                Text("Reserve runs out \(depletion, style: .relative)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(.red.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else if cashReserve > 0 {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                        Text("Reserve covers the next 30 days")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Breakdown: charges vs API
+                if result.projectedAPISpend > 0 {
+                    HStack(spacing: 16) {
+                        Label {
+                            Text("Charges: \(CurrencyFormatter.format(result.requiredNext30Days - result.projectedAPISpend, code: currencyCode))")
+                                .font(.caption)
+                        } icon: {
+                            Image(systemName: "creditcard")
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Label {
+                            Text("API (projected): \(CurrencyFormatter.format(result.projectedAPISpend, code: currencyCode))")
+                                .font(.caption)
+                        } icon: {
+                            Image(systemName: "bolt")
+                                .foregroundStyle(.orange)
+                        }
+
+                        Spacer()
+                    }
+                    .foregroundStyle(.secondary)
+                }
+            }
+            .padding()
+            .background(.background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private func fundingStatRow(title: String, value: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .background(.background)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
     // MARK: - Helpers
 
     private func syncBudgetSettings() {
         viewModel.monthlyBudget = monthlyBudget
         viewModel.alertThresholdPercent = Double(alertThresholdPercent)
+        viewModel.cashReserve = cashReserve
     }
 
     // MARK: - Recent Usage

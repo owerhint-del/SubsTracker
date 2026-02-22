@@ -52,7 +52,9 @@ final class NotificationService {
         totalMonthlySpend: Double,
         monthlyBudget: Double,
         alertThresholdPercent: Int,
-        currencyCode: String
+        currencyCode: String,
+        fundingShortfall: Double = 0,
+        depletionDate: Date? = nil
     ) async {
         // Check if notifications are enabled in settings
         guard isEnabled else {
@@ -79,6 +81,13 @@ final class NotificationService {
         for sub in subscriptions {
             scheduleRenewalAlerts(for: sub, currencyCode: currencyCode)
         }
+
+        // Schedule shortfall alert
+        scheduleShortfallAlert(
+            shortfall: fundingShortfall,
+            depletionDate: depletionDate,
+            currencyCode: currencyCode
+        )
 
         // Single atomic flush of all dedup keys written during this cycle
         flushSentKeys()
@@ -168,6 +177,45 @@ final class NotificationService {
         markSent(alert.dedupKey)
     }
 
+    // MARK: - Shortfall Alert
+
+    private func scheduleShortfallAlert(
+        shortfall: Double,
+        depletionDate: Date?,
+        currencyCode: String
+    ) {
+        let calendar = Calendar.current
+        let now = Date()
+        let yearMonth = calendar.component(.year, from: now) * 100 + calendar.component(.month, from: now)
+
+        guard let dedupKey = NotificationDecisions.shortfallAlert(
+            shortfall: shortfall,
+            sentKeys: loadSentKeys(),
+            yearMonth: yearMonth
+        ) else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Funding Shortfall"
+        if let depletion = depletionDate {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            content.body = "You need \(CurrencyFormatter.format(shortfall, code: currencyCode)) more to cover the next 30 days. Reserve runs out by \(formatter.string(from: depletion))."
+        } else {
+            content.body = "You need \(CurrencyFormatter.format(shortfall, code: currencyCode)) more to cover the next 30 days."
+        }
+        content.sound = .default
+
+        let trigger = makeTrigger()
+        let request = UNNotificationRequest(
+            identifier: dedupKey,
+            content: content,
+            trigger: trigger
+        )
+
+        center.add(request)
+        markSent(dedupKey)
+    }
+
     // MARK: - Quiet Hours
 
     /// Build a trigger that respects quiet hours.
@@ -251,10 +299,10 @@ final class NotificationService {
 
         var keys = loadSentKeys()
         keys = keys.filter { key in
-            if key.hasPrefix("budget:") {
-                // Keep only current month's budget keys
+            if key.hasPrefix("budget:") || key.hasPrefix("shortfall:") {
+                // Keep only current month's budget/shortfall keys
                 let parts = key.split(separator: ":")
-                guard parts.count >= 3, let ym = Int(parts[1]) else { return false }
+                guard parts.count >= 2, let ym = Int(parts[1]) else { return false }
                 return ym == currentYearMonth
             }
             if key.hasPrefix("renewal:") {

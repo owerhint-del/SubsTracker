@@ -64,6 +64,21 @@ enum NotificationDecisions {
         return nil
     }
 
+    // MARK: - Shortfall Alert
+
+    /// Returns a dedup key if a funding shortfall notification should fire, or nil.
+    /// Fires once per month when shortfall > 0.
+    static func shortfallAlert(
+        shortfall: Double,
+        sentKeys: Set<String>,
+        yearMonth: Int
+    ) -> String? {
+        guard shortfall > 0 else { return nil }
+        let dedupKey = "shortfall:\(yearMonth)"
+        guard !sentKeys.contains(dedupKey) else { return nil }
+        return dedupKey
+    }
+
     // MARK: - Quiet Hours
 
     /// Determines if the given hour falls within quiet hours.

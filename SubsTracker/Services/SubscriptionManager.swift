@@ -80,13 +80,55 @@ final class SubscriptionManager: ObservableObject {
         let budget = UserDefaults.standard.double(forKey: "monthlyBudget")
         let threshold = UserDefaults.standard.integer(forKey: "alertThresholdPercent")
         let currency = UserDefaults.standard.string(forKey: "currencyCode") ?? "USD"
+        let cashReserve = UserDefaults.standard.double(forKey: "cashReserve")
+
+        // Compute funding planner for shortfall notification
+        var shortfall = 0.0
+        var depletionDate: Date?
+        if cashReserve > 0 {
+            let plannerSubs = subscriptions.map { sub in
+                PlannerSubscription(
+                    name: sub.name,
+                    cost: sub.cost,
+                    billingCycle: sub.billing,
+                    renewalDate: sub.renewalDate
+                )
+            }
+            // Fetch last 30 days usage for API spend projection
+            let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now)!
+            let last30Descriptor = FetchDescriptor<UsageRecord>(
+                predicate: #Predicate<UsageRecord> { $0.date >= thirtyDaysAgo }
+            )
+            let last30Usage = (try? context.fetch(last30Descriptor)) ?? []
+            let usageCosts = last30Usage.compactMap(\.totalCost)
+
+            // Count actual days with data, not the fixed 30-day window
+            let usageDaysOfData: Int
+            if let oldest = last30Usage.min(by: { $0.date < $1.date })?.date {
+                usageDaysOfData = max(1, calendar.dateComponents([.day], from: calendar.startOfDay(for: oldest), to: now).day ?? 0)
+            } else {
+                usageDaysOfData = 0
+            }
+
+            let result = FundingPlannerEngine.calculate(
+                subscriptions: plannerSubs,
+                usageCosts: usageCosts,
+                usageDaysOfData: usageDaysOfData,
+                cashReserve: cashReserve,
+                now: now
+            )
+            shortfall = result.shortfall
+            depletionDate = result.depletionDate
+        }
 
         await notificationService.scheduleNotifications(
             subscriptions: snapshots,
             totalMonthlySpend: totalMonthly,
             monthlyBudget: budget,
             alertThresholdPercent: threshold > 0 ? threshold : 90,
-            currencyCode: currency
+            currencyCode: currency,
+            fundingShortfall: shortfall,
+            depletionDate: depletionDate
         )
     }
 

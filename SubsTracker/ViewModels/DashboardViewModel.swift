@@ -8,11 +8,15 @@ final class DashboardViewModel {
     var subscriptions: [Subscription] = []
     var recentUsage: [UsageRecord] = []
     var currentMonthUsage: [UsageRecord] = []
+    var last30DaysUsage: [UsageRecord] = []
     var isLoading = false
 
     // Budget settings — set by the View before loadData()
     var monthlyBudget: Double = 0
     var alertThresholdPercent: Double = 90
+
+    // Funding Planner settings — set by the View before loadData()
+    var cashReserve: Double = 0
 
     // MARK: - Monthly Spend Engine
 
@@ -131,6 +135,40 @@ final class DashboardViewModel {
         return percent >= alertThresholdPercent
     }
 
+    // MARK: - Funding Planner
+
+    /// Full funding planner result, computed from current data.
+    var fundingPlannerResult: FundingPlannerResult {
+        let plannerSubs = subscriptions.map { sub in
+            PlannerSubscription(
+                name: sub.name,
+                cost: sub.cost,
+                billingCycle: sub.billing,
+                renewalDate: sub.renewalDate
+            )
+        }
+
+        let usageCosts = last30DaysUsage.compactMap(\.totalCost)
+
+        let calendar = Calendar.current
+        let now = Date()
+        // Count actual days with data, not the fixed 30-day window
+        let daysOfData: Int
+        if let oldest = last30DaysUsage.min(by: { $0.date < $1.date })?.date {
+            daysOfData = max(1, calendar.dateComponents([.day], from: calendar.startOfDay(for: oldest), to: now).day ?? 0)
+        } else {
+            daysOfData = 0
+        }
+
+        return FundingPlannerEngine.calculate(
+            subscriptions: plannerSubs,
+            usageCosts: usageCosts,
+            usageDaysOfData: daysOfData,
+            cashReserve: cashReserve,
+            now: now
+        )
+    }
+
     // MARK: - Usage Stats
 
     var recentTotalTokens: Int {
@@ -167,6 +205,13 @@ final class DashboardViewModel {
             predicate: #Predicate<UsageRecord> { $0.date >= monthStart && $0.date < nextMonthStart }
         )
         currentMonthUsage = (try? context.fetch(monthUsageDescriptor)) ?? []
+
+        // Load last 30 days of usage for Funding Planner API spend projection
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now)!
+        let last30Descriptor = FetchDescriptor<UsageRecord>(
+            predicate: #Predicate<UsageRecord> { $0.date >= thirtyDaysAgo }
+        )
+        last30DaysUsage = (try? context.fetch(last30Descriptor)) ?? []
 
         isLoading = false
     }

@@ -30,14 +30,13 @@ targets:
     platform: macOS
     sources:
       - path: SubsTrackerTests
-    dependencies:
-      - target: SubsTracker
+      - path: SubsTracker/Services/FundingPlannerEngine.swift
+      - path: SubsTracker/Services/NotificationDecisions.swift
+      - path: SubsTracker/Models/Enums.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.owerhintdel.substracker.tests
         GENERATE_INFOPLIST_FILE: YES
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SubsTracker.app/Contents/MacOS/SubsTracker"
-        BUNDLE_LOADER: "$(TEST_HOST)"
 
   SubsTracker:
     type: application
