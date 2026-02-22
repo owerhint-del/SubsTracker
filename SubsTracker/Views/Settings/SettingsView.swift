@@ -18,6 +18,10 @@ struct SettingsView: View {
     @AppStorage("topUpBufferValue") private var topUpBufferValue: Double = 50
     @AppStorage("topUpLeadDays") private var topUpLeadDays: Int = 2
 
+    // Background refresh & energy
+    @AppStorage("backgroundRefreshEnabled") private var backgroundRefreshEnabled = true
+    @AppStorage("energyPolicy") private var energyPolicy = EnergyPolicy.balanced.rawValue
+
     // Notification settings
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("quietHoursEnabled") private var quietHoursEnabled = false
@@ -137,6 +141,64 @@ struct SettingsView: View {
                         .fill(manager.autoRefreshEnabled ? Color.green : Color.secondary)
                         .frame(width: 8, height: 8)
                     Text(manager.autoRefreshEnabled ? "Auto-refresh active" : "Auto-refresh off")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Background Refresh
+            Section("Background Refresh") {
+                Toggle("Refresh when window is inactive", isOn: $backgroundRefreshEnabled)
+                    .disabled(refreshInterval == 0)
+                    .onChange(of: backgroundRefreshEnabled) {
+                        manager.refreshIntervalDidChange()
+                    }
+
+                if refreshInterval > 0 && backgroundRefreshEnabled {
+                    Picker("Energy policy", selection: $energyPolicy) {
+                        ForEach(EnergyPolicy.allCases) { policy in
+                            Label {
+                                Text(policy.displayName)
+                            } icon: {
+                                Image(systemName: policy.iconSystemName)
+                            }
+                            .tag(policy.rawValue)
+                        }
+                    }
+                    .onChange(of: energyPolicy) {
+                        manager.refreshIntervalDidChange()
+                    }
+
+                    if let result = manager.currentPolicyResult {
+                        HStack(spacing: 6) {
+                            if result.shouldSkip {
+                                Image(systemName: "pause.circle.fill")
+                                    .foregroundStyle(.orange)
+                                    .font(.caption)
+                                Text(result.deferReason ?? "Paused")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                            } else if let reason = result.deferReason {
+                                Image(systemName: "leaf.fill")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                Text("\(reason) — every \(formatInterval(result.effectiveIntervalSeconds))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Image(systemName: "checkmark.circle")
+                                    .foregroundStyle(.green)
+                                    .font(.caption)
+                                Text("Refreshing every \(formatInterval(result.effectiveIntervalSeconds))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                if refreshInterval == 0 {
+                    Text("Enable auto-refresh to use background refresh")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -337,6 +399,19 @@ struct SettingsView: View {
         components.hour = hour
         let date = Calendar.current.date(from: components) ?? Date()
         return formatter.string(from: date)
+    }
+
+    private func formatInterval(_ seconds: TimeInterval) -> String {
+        let minutes = Int(seconds / 60)
+        if minutes < 60 {
+            return "\(minutes) min"
+        }
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        if remainder == 0 {
+            return "\(hours)h"
+        }
+        return "\(hours)h \(remainder)m"
     }
 
     private func saveOpenAIKey() {

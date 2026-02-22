@@ -19,9 +19,11 @@
 		165CF59E5EBCB5ADA3A73671 /* RenewalProjectionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50433CBD802FBFA5C61B3EC3 /* RenewalProjectionEngineTests.swift */; };
 		22464A9A8F8AD7361E1511DD /* ClaudeUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2868D79781237129D353FFB5 /* ClaudeUsageView.swift */; };
 		2384206487498CB677BEB9AF /* OneTimePurchaseEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94D448CB35A6BB35F9E82F8 /* OneTimePurchaseEngine.swift */; };
+		28D8AFC6CC995CFF228B70F1 /* BackgroundRefreshPolicyEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A4073116F00EE10ED2CD99 /* BackgroundRefreshPolicyEngine.swift */; };
 		32C172D11ACD1720B09AFAF2 /* UtilizationBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DEE776A9266BA231AEB578 /* UtilizationBarView.swift */; };
 		3BBF5E3CED24D2E43A8DB473 /* FinanceExportEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */; };
 		3D27BD20C05DD844445085D3 /* SubsTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AAF0680827A86906A94BF4 /* SubsTrackerApp.swift */; };
+		4592CCFB586F618F6CD8AE91 /* BackgroundRefreshPolicyEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A4073116F00EE10ED2CD99 /* BackgroundRefreshPolicyEngine.swift */; };
 		5171F2AD81AD9F100DB11E21 /* GmailSignalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */; };
 		51756EB01271F7EC9BDBBEFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E09DFFED04A2B76E346541A6 /* Assets.xcassets */; };
 		534B6454316B332104962645 /* UsageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4668E14DAEDB5024C93EB3 /* UsageViewModel.swift */; };
@@ -31,6 +33,7 @@
 		5ECE3343B256BDAA865B32C0 /* GmailScanReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05571B43FD75A0147A5C1C19 /* GmailScanReviewView.swift */; };
 		5ED5A7A9EEB52409C05AC888 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B810032AFD162213C3010 /* CurrencyFormatter.swift */; };
 		613785BBF9055E538A084725 /* ClaudeCodeLocalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F2E63407813F784022CE601 /* ClaudeCodeLocalService.swift */; };
+		640B783A35400AF821C9FFD9 /* BackgroundRefreshPolicyEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B627C7E806E430C9B2A3EE93 /* BackgroundRefreshPolicyEngineTests.swift */; };
 		6941C2369B8A6574BE257896 /* NotificationDecisions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11613571515348A97F3AA4DE /* NotificationDecisions.swift */; };
 		6EC5A4E8F95463453066B589 /* UsageRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A48B9187892CFE047769A4F /* UsageRecord.swift */; };
 		70B127A2A02F5EDC91F0424D /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF836713C899BECDB1461094 /* WidgetData.swift */; };
@@ -113,6 +116,7 @@
 		11613571515348A97F3AA4DE /* NotificationDecisions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDecisions.swift; sourceTree = "<group>"; };
 		15650DDA046EDBB37FC189E4 /* SubscriptionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionListView.swift; sourceTree = "<group>"; };
 		1A1BC882FA3D1C05773EE54C /* SubscriptionRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionRowView.swift; sourceTree = "<group>"; };
+		26A4073116F00EE10ED2CD99 /* BackgroundRefreshPolicyEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshPolicyEngine.swift; sourceTree = "<group>"; };
 		2868D79781237129D353FFB5 /* ClaudeUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeUsageView.swift; sourceTree = "<group>"; };
 		29C3CE2626BACA38FBB03607 /* GmailModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModels.swift; sourceTree = "<group>"; };
 		31108CA3ADA7590E9C6688CE /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
@@ -148,6 +152,7 @@
 		9DC237E606F24637F9A601EE /* Subscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Subscription.swift; sourceTree = "<group>"; };
 		ADE7921A1D581761DFA9FBB3 /* SubscriptionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDetailView.swift; sourceTree = "<group>"; };
 		B591B62EE230614943327905 /* FinanceExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportService.swift; sourceTree = "<group>"; };
+		B627C7E806E430C9B2A3EE93 /* BackgroundRefreshPolicyEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshPolicyEngineTests.swift; sourceTree = "<group>"; };
 		C1AAF0680827A86906A94BF4 /* SubsTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsTrackerApp.swift; sourceTree = "<group>"; };
 		C25481A4F16BB1A3B77AE6F9 /* FinanceExportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportEngine.swift; sourceTree = "<group>"; };
 		C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportEngineTests.swift; sourceTree = "<group>"; };
@@ -225,6 +230,7 @@
 		535BC56D4C117365BA478569 /* SubsTrackerTests */ = {
 			isa = PBXGroup;
 			children = (
+				B627C7E806E430C9B2A3EE93 /* BackgroundRefreshPolicyEngineTests.swift */,
 				C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */,
 				590C5BDFD1C1B55B7DF3ECA8 /* FundingPlannerEngineTests.swift */,
 				350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */,
@@ -309,6 +315,7 @@
 		AE8A9C6F0E99E84A18A3D8A3 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				26A4073116F00EE10ED2CD99 /* BackgroundRefreshPolicyEngine.swift */,
 				6B55B74D53AA2919E0C02778 /* ClaudeAPIService.swift */,
 				8F2E63407813F784022CE601 /* ClaudeCodeLocalService.swift */,
 				657E213F8205572CB9698552 /* CodexLocalService.swift */,
@@ -480,6 +487,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4592CCFB586F618F6CD8AE91 /* BackgroundRefreshPolicyEngine.swift in Sources */,
+				640B783A35400AF821C9FFD9 /* BackgroundRefreshPolicyEngineTests.swift in Sources */,
 				0F3BD5A6829CB13C62D1A0F0 /* Enums.swift in Sources */,
 				B7E6966F6B746E8ADFDE46D4 /* FinanceExportEngine.swift in Sources */,
 				3BBF5E3CED24D2E43A8DB473 /* FinanceExportEngineTests.swift in Sources */,
@@ -507,6 +516,7 @@
 			files = (
 				DBDFA22A09F44DA6DC33073C /* AddSubscriptionView.swift in Sources */,
 				8E15C8F5E18CC495CE02E955 /* AppGroupConstants.swift in Sources */,
+				28D8AFC6CC995CFF228B70F1 /* BackgroundRefreshPolicyEngine.swift in Sources */,
 				DA2979D9AB0642719EF2E19F /* ClaudeAPIService.swift in Sources */,
 				613785BBF9055E538A084725 /* ClaudeCodeLocalService.swift in Sources */,
 				22464A9A8F8AD7361E1511DD /* ClaudeUsageView.swift in Sources */,

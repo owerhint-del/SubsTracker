@@ -44,7 +44,7 @@ struct SubsTrackerApp: App {
         #if os(macOS)
         Settings {
             SettingsView()
-                .frame(width: 500, height: 650)
+                .frame(width: 500, height: 750)
         }
         .modelContainer(sharedModelContainer)
         #endif
@@ -92,10 +92,8 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
-                Task {
-                    await manager.handleSceneActive(context: modelContext)
-                }
+            Task {
+                await manager.handleScenePhaseChange(isActive: newPhase == .active, context: modelContext)
             }
         }
     }

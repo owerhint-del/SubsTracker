@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import WidgetKit
+import AppKit
 
 /// Coordinates data fetching and sync across all services
 @MainActor
@@ -17,22 +18,30 @@ final class SubscriptionManager: ObservableObject {
     @Published var lastErrorAt: Date?
     @Published var consecutiveErrors: Int = 0
     @Published private(set) var currentRefreshInterval: Int = 30
+    @Published private(set) var currentPolicyResult: PolicyResult?
+    @Published private(set) var isSceneActive: Bool = true
 
     private var refreshTimer: Timer?
     private var storedContext: ModelContext?
     private var hasStarted = false
+    private var backgroundScheduler: NSBackgroundActivityScheduler?
+    private var currentThermalState: EnergyThermalState = .nominal
+    private var isLowPowerMode: Bool = false
+    private var energyObservers: [Any] = []
 
     /// Whether auto-refresh is enabled (refreshInterval > 0).
     var autoRefreshEnabled: Bool {
         currentRefreshInterval > 0
     }
 
-    /// When the next auto-refresh is due. Nil when auto-refresh is disabled.
+    /// When the next auto-refresh is due, accounting for energy throttling.
+    /// Nil when auto-refresh is disabled.
     var nextRefreshDate: Date? {
-        RefreshScheduleEngine.nextRefreshDate(
-            lastRefreshAt: lastRefreshAtDate,
-            refreshInterval: currentRefreshInterval
-        )
+        guard currentRefreshInterval > 0 else { return nil }
+        guard let last = lastRefreshAtDate else { return nil }
+        let effectiveSeconds = currentPolicyResult?.effectiveIntervalSeconds
+            ?? Double(currentRefreshInterval) * 60
+        return last.addingTimeInterval(effectiveSeconds)
     }
 
     private init() {
@@ -41,7 +50,9 @@ final class SubscriptionManager: ObservableObject {
             "topUpEnabled": true,
             "topUpBufferValue": 50.0,
             "topUpLeadDays": 2,
-            "refreshInterval": 30
+            "refreshInterval": 30,
+            "backgroundRefreshEnabled": true,
+            "energyPolicy": EnergyPolicy.balanced.rawValue
         ])
     }
 
@@ -90,8 +101,9 @@ final class SubscriptionManager: ObservableObject {
     // MARK: - Auto-Refresh Orchestration
 
     /// Entry point called once from ContentView.onAppear.
-    /// Restores persisted state, runs startup refresh decision, arms the timer.
+    /// Idempotent — safe to call multiple times (only the first call has effect).
     func startAutoRefresh(context: ModelContext) async {
+        guard !hasStarted else { return }
         storedContext = context
 
         // Sync current refresh interval
@@ -101,28 +113,36 @@ final class SubscriptionManager: ObservableObject {
         let stored = UserDefaults.standard.double(forKey: "lastRefreshAt")
         lastRefreshAtDate = stored > 0 ? Date(timeIntervalSince1970: stored) : nil
 
+        // Seed initial energy state from ProcessInfo
+        isLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        currentThermalState = mapThermalState(ProcessInfo.processInfo.thermalState)
+        recomputePolicy()
+
+        // Subscribe to energy/power/sleep notifications
+        setupEnergyObservers()
+
         // Notification setup
         if notificationService.isEnabled {
             await notificationService.requestPermissionIfNeeded()
         }
         notificationService.pruneOldKeys()
 
-        // Startup refresh decision
-        let interval = UserDefaults.standard.integer(forKey: "refreshInterval")
-        let decision = RefreshScheduleEngine.shouldRefresh(
-            now: Date(),
-            lastRefreshAt: lastRefreshAtDate,
-            refreshInterval: interval,
-            isRefreshing: isRefreshing,
-            lastErrorAt: lastErrorAt,
-            consecutiveErrors: consecutiveErrors,
-            reason: .startup
-        )
-
+        // Startup refresh decision — uses effective interval, respects policy skip
         var didRefresh = false
-        if case .refresh = decision {
-            await refreshAll(context: context)
-            didRefresh = true
+        if currentPolicyResult?.shouldSkip != true {
+            let decision = RefreshScheduleEngine.shouldRefresh(
+                now: Date(),
+                lastRefreshAt: lastRefreshAtDate,
+                refreshInterval: effectiveIntervalMinutes,
+                isRefreshing: isRefreshing,
+                lastErrorAt: lastErrorAt,
+                consecutiveErrors: consecutiveErrors,
+                reason: .startup
+            )
+            if case .refresh = decision {
+                await refreshAll(context: context)
+                didRefresh = true
+            }
         }
 
         // Schedule notifications from local data if refresh didn't already do it
@@ -130,27 +150,46 @@ final class SubscriptionManager: ObservableObject {
             await scheduleNotifications(context: context)
         }
 
-        // Arm the repeating timer
+        // Arm the repeating timer (app starts in active scene)
         scheduleTimer()
         hasStarted = true
     }
 
-    /// Called when scenePhase becomes .active (app returns to foreground).
-    /// Skips if startAutoRefresh hasn't completed yet (prevents startup race).
-    func handleSceneActive(context: ModelContext) async {
+    /// Called on every scenePhase change.
+    /// isActive=true: restart foreground timer, check if refresh is due.
+    /// isActive=false: pause timer, start background scheduler.
+    func handleScenePhaseChange(isActive: Bool, context: ModelContext) async {
         guard hasStarted else { return }
-        let interval = UserDefaults.standard.integer(forKey: "refreshInterval")
-        let decision = RefreshScheduleEngine.shouldRefresh(
-            now: Date(),
-            lastRefreshAt: lastRefreshAtDate,
-            refreshInterval: interval,
-            isRefreshing: isRefreshing,
-            lastErrorAt: lastErrorAt,
-            consecutiveErrors: consecutiveErrors,
-            reason: .returnedToForeground
-        )
-        if case .refresh = decision {
-            await refreshAll(context: context)
+
+        if isActive {
+            let wasInactive = !isSceneActive
+            isSceneActive = true
+            stopBackgroundScheduler()
+            recomputePolicy()
+            scheduleTimer()
+
+            // Check if refresh is due after returning to foreground
+            // Respects energy policy: if shouldSkip, don't auto-refresh
+            if wasInactive && currentPolicyResult?.shouldSkip != true {
+                let decision = RefreshScheduleEngine.shouldRefresh(
+                    now: Date(),
+                    lastRefreshAt: lastRefreshAtDate,
+                    refreshInterval: effectiveIntervalMinutes,
+                    isRefreshing: isRefreshing,
+                    lastErrorAt: lastErrorAt,
+                    consecutiveErrors: consecutiveErrors,
+                    reason: .returnedToForeground
+                )
+                if case .refresh = decision {
+                    await refreshAll(context: context)
+                }
+            }
+        } else {
+            isSceneActive = false
+            refreshTimer?.invalidate()
+            refreshTimer = nil
+            stopBackgroundScheduler()
+            startBackgroundSchedulerIfEnabled()
         }
     }
 
@@ -170,13 +209,20 @@ final class SubscriptionManager: ObservableObject {
         }
     }
 
-    /// Re-arms the timer when the user changes refreshInterval in Settings.
+    /// Re-arms the timer when the user changes refreshInterval or energy policy in Settings.
     func refreshIntervalDidChange() {
         currentRefreshInterval = UserDefaults.standard.integer(forKey: "refreshInterval")
-        scheduleTimer()
+        recomputePolicy()
+        if isSceneActive {
+            scheduleTimer()
+        } else {
+            stopBackgroundScheduler()
+            startBackgroundSchedulerIfEnabled()
+        }
     }
 
-    /// Arms or disarms the repeating timer based on current refreshInterval.
+    /// Arms or disarms the foreground repeating timer.
+    /// Uses effective interval from energy policy (or raw interval as fallback).
     private func scheduleTimer() {
         refreshTimer?.invalidate()
         refreshTimer = nil
@@ -184,19 +230,24 @@ final class SubscriptionManager: ObservableObject {
         let interval = UserDefaults.standard.integer(forKey: "refreshInterval")
         guard interval > 0 else { return }
 
-        let intervalSeconds = Double(interval) * 60
+        // If policy says skip, don't arm the timer at all
+        if let policy = currentPolicyResult, policy.shouldSkip {
+            return
+        }
+
+        let intervalSeconds = currentPolicyResult?.effectiveIntervalSeconds
+            ?? Double(interval) * 60
         refreshTimer = Timer.scheduledTimer(
             withTimeInterval: intervalSeconds,
             repeats: true
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, let context = self.storedContext else { return }
-                // Re-read interval from UserDefaults (may have changed since timer was armed)
-                let currentInterval = UserDefaults.standard.integer(forKey: "refreshInterval")
+                let effectiveMinutes = self.effectiveIntervalMinutes
                 let decision = RefreshScheduleEngine.shouldRefresh(
                     now: Date(),
                     lastRefreshAt: self.lastRefreshAtDate,
-                    refreshInterval: currentInterval,
+                    refreshInterval: effectiveMinutes,
                     isRefreshing: self.isRefreshing,
                     lastErrorAt: self.lastErrorAt,
                     consecutiveErrors: self.consecutiveErrors,
@@ -207,6 +258,179 @@ final class SubscriptionManager: ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - Energy-Aware Refresh
+
+    /// Subscribe to system energy/power/sleep notifications.
+    /// Called once from startAutoRefresh. Tokens stored to prevent duplicates.
+    private func setupEnergyObservers() {
+        guard energyObservers.isEmpty else { return }
+
+        // Power state changes (Low Power Mode toggle)
+        let powerObs = NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+                self.handleEnergyStateChange()
+            }
+        }
+        energyObservers.append(powerObs)
+
+        // Thermal state changes
+        let thermalObs = NotificationCenter.default.addObserver(
+            forName: ProcessInfo.thermalStateDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.currentThermalState = self.mapThermalState(ProcessInfo.processInfo.thermalState)
+                self.handleEnergyStateChange()
+            }
+        }
+        energyObservers.append(thermalObs)
+
+        // Machine sleep — invalidate timer to avoid stale fires on wake
+        let sleepObs = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshTimer?.invalidate()
+                self?.refreshTimer = nil
+                self?.stopBackgroundScheduler()
+            }
+        }
+        energyObservers.append(sleepObs)
+
+        // Machine wake — reschedule based on current state
+        let wakeObs = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+                self.currentThermalState = self.mapThermalState(ProcessInfo.processInfo.thermalState)
+                self.recomputePolicy()
+                if self.isSceneActive {
+                    self.scheduleTimer()
+                } else {
+                    self.startBackgroundSchedulerIfEnabled()
+                }
+            }
+        }
+        energyObservers.append(wakeObs)
+    }
+
+    /// React to any energy state change (power, thermal).
+    private func handleEnergyStateChange() {
+        recomputePolicy()
+        if isSceneActive {
+            scheduleTimer()
+        } else {
+            stopBackgroundScheduler()
+            startBackgroundSchedulerIfEnabled()
+        }
+    }
+
+    /// Build PolicyInput from current state and evaluate through the engine.
+    private func recomputePolicy() {
+        let policyRaw = UserDefaults.standard.string(forKey: "energyPolicy") ?? EnergyPolicy.balanced.rawValue
+        let policy = EnergyPolicy(rawValue: policyRaw) ?? .balanced
+
+        let result = BackgroundRefreshPolicyEngine.evaluate(input: PolicyInput(
+            baseIntervalMinutes: currentRefreshInterval,
+            policy: policy,
+            isLowPowerMode: isLowPowerMode,
+            thermalState: currentThermalState
+        ))
+        currentPolicyResult = result
+    }
+
+    /// Effective refresh interval in minutes, accounting for energy throttling.
+    /// Used to pass to RefreshScheduleEngine for correct elapsed-time gating.
+    private var effectiveIntervalMinutes: Int {
+        if let policy = currentPolicyResult, !policy.shouldSkip {
+            return max(1, Int(policy.effectiveIntervalSeconds / 60))
+        }
+        return currentRefreshInterval
+    }
+
+    /// Map Foundation's ProcessInfo.ThermalState to our pure enum.
+    private func mapThermalState(_ state: ProcessInfo.ThermalState) -> EnergyThermalState {
+        switch state {
+        case .nominal: return .nominal
+        case .fair: return .fair
+        case .serious: return .serious
+        case .critical: return .critical
+        @unknown default: return .nominal
+        }
+    }
+
+    // MARK: - Background Scheduler
+
+    /// Start the NSBackgroundActivityScheduler if background refresh is enabled.
+    /// Always invalidates any existing scheduler first to prevent duplicates.
+    private func startBackgroundSchedulerIfEnabled() {
+        // Replace-safe: always clean up any existing scheduler first
+        stopBackgroundScheduler()
+
+        let bgEnabled = UserDefaults.standard.bool(forKey: "backgroundRefreshEnabled")
+        guard bgEnabled, currentRefreshInterval > 0 else { return }
+        guard !(currentPolicyResult?.shouldSkip ?? false) else { return }
+
+        let effectiveSeconds = currentPolicyResult?.effectiveIntervalSeconds
+            ?? Double(currentRefreshInterval) * 60
+
+        let scheduler = NSBackgroundActivityScheduler(
+            identifier: "com.owerhintdel.substracker.backgroundRefresh"
+        )
+        scheduler.repeats = true
+        scheduler.interval = effectiveSeconds
+        scheduler.tolerance = effectiveSeconds * 0.1
+
+        scheduler.schedule { [weak self, weak scheduler] completion in
+            guard self != nil else {
+                completion(.finished)
+                return
+            }
+            if scheduler?.shouldDefer == true {
+                completion(.deferred)
+                return
+            }
+            Task { @MainActor [weak self] in
+                defer { completion(.finished) }
+                guard let self, let context = self.storedContext else { return }
+                let effectiveMinutes = self.effectiveIntervalMinutes
+                let decision = RefreshScheduleEngine.shouldRefresh(
+                    now: Date(),
+                    lastRefreshAt: self.lastRefreshAtDate,
+                    refreshInterval: effectiveMinutes,
+                    isRefreshing: self.isRefreshing,
+                    lastErrorAt: self.lastErrorAt,
+                    consecutiveErrors: self.consecutiveErrors,
+                    reason: .interval
+                )
+                if case .refresh = decision {
+                    await self.refreshAll(context: context)
+                }
+            }
+        }
+        backgroundScheduler = scheduler
+    }
+
+    /// Invalidate the background scheduler.
+    private func stopBackgroundScheduler() {
+        backgroundScheduler?.invalidate()
+        backgroundScheduler = nil
     }
 
     // MARK: - Notifications

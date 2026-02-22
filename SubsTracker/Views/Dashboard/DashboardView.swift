@@ -176,16 +176,54 @@ struct DashboardView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            // Energy throttle indicator
+            if let result = manager.currentPolicyResult {
+                if result.shouldSkip {
+                    Label {
+                        Text(result.deferReason ?? "Paused")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } icon: {
+                        Image(systemName: "pause.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                } else if result.deferReason != nil {
+                    Label {
+                        Text("Throttled")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } icon: {
+                        Image(systemName: "leaf.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             Spacer()
             HStack(spacing: 4) {
                 Circle()
-                    .fill(manager.autoRefreshEnabled ? Color.green : Color.secondary)
+                    .fill(refreshStatusColor)
                     .frame(width: 6, height: 6)
-                Text(manager.autoRefreshEnabled ? "Auto" : "Manual")
+                Text(refreshStatusLabel)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var refreshStatusColor: Color {
+        if !manager.autoRefreshEnabled { return .secondary }
+        if !manager.isSceneActive { return .blue }
+        return .green
+    }
+
+    private var refreshStatusLabel: String {
+        if !manager.autoRefreshEnabled { return "Manual" }
+        if !manager.isSceneActive { return "Background" }
+        return "Auto"
     }
 
     // MARK: - Spend Breakdown
