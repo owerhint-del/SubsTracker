@@ -33,6 +33,7 @@ targets:
       - path: SubsTracker/Services/FundingPlannerEngine.swift
       - path: SubsTracker/Services/NotificationDecisions.swift
       - path: SubsTracker/Services/GmailSignalEngine.swift
+      - path: SubsTracker/Services/FinanceExportEngine.swift
       - path: SubsTracker/Models/Enums.swift
       - path: SubsTracker/Models/GmailModels.swift
     settings:

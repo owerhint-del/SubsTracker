@@ -11,6 +11,22 @@ struct DashboardView: View {
     @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
     @AppStorage("cashReserve") private var cashReserve: Double = 0
 
+    // Export state
+    @State private var showExportSheet = false
+    @State private var exportFormat: FinanceExportService.ExportFormat = .csv
+    @State private var exportPeriod: FinanceExportService.ExportPeriodType = .currentMonth
+    @State private var exportIncludeUsage = true
+    @State private var exportCustomStart = Date()
+    @State private var exportCustomEnd = Date()
+    @State private var exportStatus: ExportStatus = .idle
+
+    private enum ExportStatus: Equatable {
+        case idle
+        case exporting
+        case success(String)
+        case error(String)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -41,6 +57,17 @@ struct DashboardView: View {
                 }
                 .disabled(manager.isRefreshing)
             }
+            ToolbarItem(placement: .secondaryAction) {
+                Button {
+                    exportStatus = .idle
+                    showExportSheet = true
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+            }
+        }
+        .sheet(isPresented: $showExportSheet) {
+            exportSheet
         }
         .onAppear {
             // Pass budget settings to ViewModel
@@ -365,6 +392,106 @@ struct DashboardView: View {
         .padding(10)
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Export Sheet
+
+    private var exportSheet: some View {
+        VStack(spacing: 16) {
+            Text("Export Financial Data")
+                .font(.headline)
+                .padding(.top)
+
+            Form {
+                Picker("Format", selection: $exportFormat) {
+                    ForEach(FinanceExportService.ExportFormat.allCases) { format in
+                        Text(format.rawValue).tag(format)
+                    }
+                }
+
+                Picker("Period", selection: $exportPeriod) {
+                    ForEach(FinanceExportService.ExportPeriodType.allCases) { period in
+                        Text(period.rawValue).tag(period)
+                    }
+                }
+
+                if exportPeriod == .custom {
+                    DatePicker("From", selection: $exportCustomStart, displayedComponents: .date)
+                    DatePicker("To", selection: $exportCustomEnd, displayedComponents: .date)
+                }
+
+                Toggle("Include usage breakdown", isOn: $exportIncludeUsage)
+            }
+            .formStyle(.grouped)
+            .frame(maxHeight: 250)
+
+            // Status
+            switch exportStatus {
+            case .idle:
+                EmptyView()
+            case .exporting:
+                ProgressView("Exporting...")
+                    .controlSize(.small)
+            case .success(let path):
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Saved to \(path)")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            case .error(let msg):
+                HStack(spacing: 6) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            HStack {
+                Button("Cancel") {
+                    showExportSheet = false
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Spacer()
+
+                Button("Export") {
+                    performExport()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(exportStatus == .exporting)
+            }
+            .padding(.horizontal)
+            .padding(.bottom)
+        }
+        .frame(width: 400)
+    }
+
+    private func performExport() {
+        exportStatus = .exporting
+        Task {
+            do {
+                let url = try await FinanceExportService.export(
+                    context: modelContext,
+                    format: exportFormat,
+                    periodType: exportPeriod,
+                    customStart: exportCustomStart,
+                    customEnd: exportCustomEnd,
+                    includeUsage: exportIncludeUsage,
+                    currencyCode: currencyCode,
+                    cashReserve: cashReserve
+                )
+                exportStatus = .success(url.lastPathComponent)
+            } catch FinanceExportService.ExportError.cancelled {
+                exportStatus = .idle
+            } catch {
+                exportStatus = .error(error.localizedDescription)
+            }
+        }
     }
 
     // MARK: - Helpers

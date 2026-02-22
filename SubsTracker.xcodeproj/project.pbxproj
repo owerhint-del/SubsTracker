@@ -16,6 +16,7 @@
 		160792F6A47211413C8E6A6F /* OpenAIUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A69423B0EF440E1CFE4D81 /* OpenAIUsageService.swift */; };
 		22464A9A8F8AD7361E1511DD /* ClaudeUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2868D79781237129D353FFB5 /* ClaudeUsageView.swift */; };
 		32C172D11ACD1720B09AFAF2 /* UtilizationBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DEE776A9266BA231AEB578 /* UtilizationBarView.swift */; };
+		3BBF5E3CED24D2E43A8DB473 /* FinanceExportEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */; };
 		3D27BD20C05DD844445085D3 /* SubsTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AAF0680827A86906A94BF4 /* SubsTrackerApp.swift */; };
 		5171F2AD81AD9F100DB11E21 /* GmailSignalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */; };
 		51756EB01271F7EC9BDBBEFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E09DFFED04A2B76E346541A6 /* Assets.xcassets */; };
@@ -31,10 +32,12 @@
 		738E9F2B6F263EEE805913BE /* CodexLocalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 657E213F8205572CB9698552 /* CodexLocalService.swift */; };
 		7DBFD58696FB6488E30C44A1 /* OpenAIUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CCEE6D100A11E5F433A4D30 /* OpenAIUsageView.swift */; };
 		82ACD60AAD2E9B6E89F70D20 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94949E85B6764B161D41FB6A /* DashboardViewModel.swift */; };
+		87C2D06273E6DF58E2ED3AA8 /* FinanceExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B591B62EE230614943327905 /* FinanceExportService.swift */; };
 		8CCB9F952F975BF26736CB52 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784FD25611C07CA6E7E86088 /* SubscriptionManager.swift */; };
 		8E15C8F5E18CC495CE02E955 /* AppGroupConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A7A815CDC3778875CA65B3 /* AppGroupConstants.swift */; };
 		903329407CB5B2A4C302573D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BB0642F0127090105AD85B2 /* SettingsView.swift */; };
 		928C676973927E4B54EACADB /* SubscriptionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05878010E0F383B6B8BC29A1 /* SubscriptionViewModel.swift */; };
+		954A49D8827711C5B976EEB9 /* FinanceExportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C25481A4F16BB1A3B77AE6F9 /* FinanceExportEngine.swift */; };
 		9C906CAACF6CA6CD29C8AF0F /* FundingPlannerEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 590C5BDFD1C1B55B7DF3ECA8 /* FundingPlannerEngineTests.swift */; };
 		A03FEE753AA00FCA5A842492 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3B538E45334B823AB53E3A /* Enums.swift */; };
 		A109D91D2142BF00AD67F113 /* GmailScanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02DA1558AC9AC72F22DBEE02 /* GmailScanViewModel.swift */; };
@@ -42,6 +45,7 @@
 		AEFB25553C826CEAAA5873E3 /* GmailSignalEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */; };
 		B251888E31FF411B1C77A26A /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF836713C899BECDB1461094 /* WidgetData.swift */; };
 		B6AC9DB751591352386E4975 /* GmailSignalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */; };
+		B7E6966F6B746E8ADFDE46D4 /* FinanceExportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C25481A4F16BB1A3B77AE6F9 /* FinanceExportEngine.swift */; };
 		BC61D29ACCAD8C8EF9A738E9 /* FundingPlannerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65FD4DF45E78A1F29FF7B7CF /* FundingPlannerEngine.swift */; };
 		BCF783D6E502442254CE1B24 /* SubscriptionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15650DDA046EDBB37FC189E4 /* SubscriptionListView.swift */; };
 		C0BE01BEEA89FA02C727B51B /* Subscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC237E606F24637F9A601EE /* Subscription.swift */; };
@@ -125,7 +129,10 @@
 		94949E85B6764B161D41FB6A /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		9DC237E606F24637F9A601EE /* Subscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Subscription.swift; sourceTree = "<group>"; };
 		ADE7921A1D581761DFA9FBB3 /* SubscriptionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDetailView.swift; sourceTree = "<group>"; };
+		B591B62EE230614943327905 /* FinanceExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportService.swift; sourceTree = "<group>"; };
 		C1AAF0680827A86906A94BF4 /* SubsTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsTrackerApp.swift; sourceTree = "<group>"; };
+		C25481A4F16BB1A3B77AE6F9 /* FinanceExportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportEngine.swift; sourceTree = "<group>"; };
+		C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportEngineTests.swift; sourceTree = "<group>"; };
 		CD4668E14DAEDB5024C93EB3 /* UsageViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageViewModel.swift; sourceTree = "<group>"; };
 		D3B2537D3EEA1C72F95C43EC /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		DDE34E42C3005BDA8D004BF6 /* AddSubscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSubscriptionView.swift; sourceTree = "<group>"; };
@@ -195,6 +202,7 @@
 		535BC56D4C117365BA478569 /* SubsTrackerTests */ = {
 			isa = PBXGroup;
 			children = (
+				C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */,
 				590C5BDFD1C1B55B7DF3ECA8 /* FundingPlannerEngineTests.swift */,
 				350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */,
 				6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */,
@@ -277,6 +285,8 @@
 				6B55B74D53AA2919E0C02778 /* ClaudeAPIService.swift */,
 				8F2E63407813F784022CE601 /* ClaudeCodeLocalService.swift */,
 				657E213F8205572CB9698552 /* CodexLocalService.swift */,
+				C25481A4F16BB1A3B77AE6F9 /* FinanceExportEngine.swift */,
+				B591B62EE230614943327905 /* FinanceExportService.swift */,
 				65FD4DF45E78A1F29FF7B7CF /* FundingPlannerEngine.swift */,
 				3CED70A3E8F7F47053DC1117 /* GmailOAuthService.swift */,
 				90FF483C67D7FDBD986A4F2F /* GmailScannerService.swift */,
@@ -440,6 +450,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				0F3BD5A6829CB13C62D1A0F0 /* Enums.swift in Sources */,
+				B7E6966F6B746E8ADFDE46D4 /* FinanceExportEngine.swift in Sources */,
+				3BBF5E3CED24D2E43A8DB473 /* FinanceExportEngineTests.swift in Sources */,
 				BC61D29ACCAD8C8EF9A738E9 /* FundingPlannerEngine.swift in Sources */,
 				9C906CAACF6CA6CD29C8AF0F /* FundingPlannerEngineTests.swift in Sources */,
 				D542F53F61A30A57AFDA542D /* GmailModels.swift in Sources */,
@@ -464,6 +476,8 @@
 				DB80C2C72EE370142549A154 /* DashboardView.swift in Sources */,
 				82ACD60AAD2E9B6E89F70D20 /* DashboardViewModel.swift in Sources */,
 				A03FEE753AA00FCA5A842492 /* Enums.swift in Sources */,
+				954A49D8827711C5B976EEB9 /* FinanceExportEngine.swift in Sources */,
+				87C2D06273E6DF58E2ED3AA8 /* FinanceExportService.swift in Sources */,
 				D130F2C4C824287A62FCADC5 /* FundingPlannerEngine.swift in Sources */,
 				01F3C02F3C274856D6D7CBF2 /* GmailModels.swift in Sources */,
 				E19E9B720AE99FFCFBBC6361 /* GmailOAuthService.swift in Sources */,
