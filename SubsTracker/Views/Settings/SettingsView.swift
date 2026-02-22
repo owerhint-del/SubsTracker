@@ -24,6 +24,8 @@ struct SettingsView: View {
     @AppStorage("quietStartHour") private var quietStartHour = 22
     @AppStorage("quietEndHour") private var quietEndHour = 8
 
+    @StateObject private var manager = SubscriptionManager.shared
+
     @State private var openAIKey = ""
     @State private var showingKey = false
     @State private var saveMessage: String?
@@ -125,6 +127,18 @@ struct SettingsView: View {
                     Text("30 minutes").tag(30)
                     Text("1 hour").tag(60)
                     Text("Never").tag(0)
+                }
+                .onChange(of: refreshInterval) {
+                    manager.refreshIntervalDidChange()
+                }
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(manager.autoRefreshEnabled ? Color.green : Color.secondary)
+                        .frame(width: 8, height: 8)
+                    Text(manager.autoRefreshEnabled ? "Auto-refresh active" : "Auto-refresh off")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 

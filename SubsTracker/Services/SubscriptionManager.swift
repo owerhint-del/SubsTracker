@@ -13,20 +13,44 @@ final class SubscriptionManager: ObservableObject {
 
     @Published var isRefreshing = false
     @Published var lastError: String?
+    @Published var lastRefreshAtDate: Date?
+    @Published var lastErrorAt: Date?
+    @Published var consecutiveErrors: Int = 0
+    @Published private(set) var currentRefreshInterval: Int = 30
+
+    private var refreshTimer: Timer?
+    private var storedContext: ModelContext?
+    private var hasStarted = false
+
+    /// Whether auto-refresh is enabled (refreshInterval > 0).
+    var autoRefreshEnabled: Bool {
+        currentRefreshInterval > 0
+    }
+
+    /// When the next auto-refresh is due. Nil when auto-refresh is disabled.
+    var nextRefreshDate: Date? {
+        RefreshScheduleEngine.nextRefreshDate(
+            lastRefreshAt: lastRefreshAtDate,
+            refreshInterval: currentRefreshInterval
+        )
+    }
 
     private init() {
         // Register defaults matching @AppStorage defaults in Views
         UserDefaults.standard.register(defaults: [
             "topUpEnabled": true,
             "topUpBufferValue": 50.0,
-            "topUpLeadDays": 2
+            "topUpLeadDays": 2,
+            "refreshInterval": 30
         ])
     }
 
     // MARK: - Refresh All
 
-    /// Refresh usage data for all API-connected subscriptions
+    /// Refresh usage data for all API-connected subscriptions.
+    /// Re-entrant safe: returns immediately if already refreshing.
     func refreshAll(context: ModelContext) async {
+        guard !isRefreshing else { return }
         isRefreshing = true
         lastError = nil
 
@@ -49,7 +73,140 @@ final class SubscriptionManager: ObservableObject {
         // Schedule notifications based on current data
         await scheduleNotifications(context: context)
 
+        // Track success/error state
+        if lastError != nil {
+            consecutiveErrors += 1
+            lastErrorAt = Date()
+        } else {
+            consecutiveErrors = 0
+            lastErrorAt = nil
+            lastRefreshAtDate = Date()
+            UserDefaults.standard.set(lastRefreshAtDate!.timeIntervalSince1970, forKey: "lastRefreshAt")
+        }
+
         isRefreshing = false
+    }
+
+    // MARK: - Auto-Refresh Orchestration
+
+    /// Entry point called once from ContentView.onAppear.
+    /// Restores persisted state, runs startup refresh decision, arms the timer.
+    func startAutoRefresh(context: ModelContext) async {
+        storedContext = context
+
+        // Sync current refresh interval
+        currentRefreshInterval = UserDefaults.standard.integer(forKey: "refreshInterval")
+
+        // Restore persisted lastRefreshAt
+        let stored = UserDefaults.standard.double(forKey: "lastRefreshAt")
+        lastRefreshAtDate = stored > 0 ? Date(timeIntervalSince1970: stored) : nil
+
+        // Notification setup
+        if notificationService.isEnabled {
+            await notificationService.requestPermissionIfNeeded()
+        }
+        notificationService.pruneOldKeys()
+
+        // Startup refresh decision
+        let interval = UserDefaults.standard.integer(forKey: "refreshInterval")
+        let decision = RefreshScheduleEngine.shouldRefresh(
+            now: Date(),
+            lastRefreshAt: lastRefreshAtDate,
+            refreshInterval: interval,
+            isRefreshing: isRefreshing,
+            lastErrorAt: lastErrorAt,
+            consecutiveErrors: consecutiveErrors,
+            reason: .startup
+        )
+
+        var didRefresh = false
+        if case .refresh = decision {
+            await refreshAll(context: context)
+            didRefresh = true
+        }
+
+        // Schedule notifications from local data if refresh didn't already do it
+        if !didRefresh {
+            await scheduleNotifications(context: context)
+        }
+
+        // Arm the repeating timer
+        scheduleTimer()
+        hasStarted = true
+    }
+
+    /// Called when scenePhase becomes .active (app returns to foreground).
+    /// Skips if startAutoRefresh hasn't completed yet (prevents startup race).
+    func handleSceneActive(context: ModelContext) async {
+        guard hasStarted else { return }
+        let interval = UserDefaults.standard.integer(forKey: "refreshInterval")
+        let decision = RefreshScheduleEngine.shouldRefresh(
+            now: Date(),
+            lastRefreshAt: lastRefreshAtDate,
+            refreshInterval: interval,
+            isRefreshing: isRefreshing,
+            lastErrorAt: lastErrorAt,
+            consecutiveErrors: consecutiveErrors,
+            reason: .returnedToForeground
+        )
+        if case .refresh = decision {
+            await refreshAll(context: context)
+        }
+    }
+
+    /// Called from the Dashboard toolbar button.
+    func manualRefresh(context: ModelContext) async {
+        let decision = RefreshScheduleEngine.shouldRefresh(
+            now: Date(),
+            lastRefreshAt: lastRefreshAtDate,
+            refreshInterval: UserDefaults.standard.integer(forKey: "refreshInterval"),
+            isRefreshing: isRefreshing,
+            lastErrorAt: lastErrorAt,
+            consecutiveErrors: consecutiveErrors,
+            reason: .manual
+        )
+        if case .refresh = decision {
+            await refreshAll(context: context)
+        }
+    }
+
+    /// Re-arms the timer when the user changes refreshInterval in Settings.
+    func refreshIntervalDidChange() {
+        currentRefreshInterval = UserDefaults.standard.integer(forKey: "refreshInterval")
+        scheduleTimer()
+    }
+
+    /// Arms or disarms the repeating timer based on current refreshInterval.
+    private func scheduleTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+
+        let interval = UserDefaults.standard.integer(forKey: "refreshInterval")
+        guard interval > 0 else { return }
+
+        let intervalSeconds = Double(interval) * 60
+        refreshTimer = Timer.scheduledTimer(
+            withTimeInterval: intervalSeconds,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, let context = self.storedContext else { return }
+                // Re-read interval from UserDefaults (may have changed since timer was armed)
+                let currentInterval = UserDefaults.standard.integer(forKey: "refreshInterval")
+                let decision = RefreshScheduleEngine.shouldRefresh(
+                    now: Date(),
+                    lastRefreshAt: self.lastRefreshAtDate,
+                    refreshInterval: currentInterval,
+                    isRefreshing: self.isRefreshing,
+                    lastErrorAt: self.lastErrorAt,
+                    consecutiveErrors: self.consecutiveErrors,
+                    reason: .interval
+                )
+                if case .refresh = decision {
+                    await self.refreshAll(context: context)
+                }
+            }
+        }
     }
 
     // MARK: - Notifications

@@ -37,8 +37,10 @@
 		7365BD15A0233CF414EDAEA8 /* TopUpRecommendationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10872328B921E6DB176743E7 /* TopUpRecommendationEngineTests.swift */; };
 		738E9F2B6F263EEE805913BE /* CodexLocalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 657E213F8205572CB9698552 /* CodexLocalService.swift */; };
 		7DBFD58696FB6488E30C44A1 /* OpenAIUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CCEE6D100A11E5F433A4D30 /* OpenAIUsageView.swift */; };
+		7E4846CD729120B4F6AF6CEA /* RefreshScheduleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91F0A46F38DCC8DD0BD859D5 /* RefreshScheduleEngine.swift */; };
 		82ACD60AAD2E9B6E89F70D20 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94949E85B6764B161D41FB6A /* DashboardViewModel.swift */; };
 		87C2D06273E6DF58E2ED3AA8 /* FinanceExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B591B62EE230614943327905 /* FinanceExportService.swift */; };
+		898C348FD39E5D345AFBDC1D /* RefreshScheduleEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F3A95FCBCE354CFFCA8620 /* RefreshScheduleEngineTests.swift */; };
 		8C2C000673DDE1AFFD2FA995 /* RenewalProjectionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73810AE3D0E40798D57F8965 /* RenewalProjectionEngine.swift */; };
 		8CCB9F952F975BF26736CB52 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784FD25611C07CA6E7E86088 /* SubscriptionManager.swift */; };
 		8E15C8F5E18CC495CE02E955 /* AppGroupConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A7A815CDC3778875CA65B3 /* AppGroupConstants.swift */; };
@@ -52,6 +54,7 @@
 		A899DC1D9745EEF3014EAF89 /* OneTimePurchaseEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E253713B75A53F06153CB178 /* OneTimePurchaseEngineTests.swift */; };
 		AEAA8290797F3E78AB1BAAAF /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A8212ADFAC3215C2034562 /* NotificationService.swift */; };
 		AEFB25553C826CEAAA5873E3 /* GmailSignalEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */; };
+		B03B58DD1BBBA5B2B5D2731D /* RefreshScheduleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91F0A46F38DCC8DD0BD859D5 /* RefreshScheduleEngine.swift */; };
 		B251888E31FF411B1C77A26A /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF836713C899BECDB1461094 /* WidgetData.swift */; };
 		B6AC9DB751591352386E4975 /* GmailSignalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */; };
 		B7E6966F6B746E8ADFDE46D4 /* FinanceExportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C25481A4F16BB1A3B77AE6F9 /* FinanceExportEngine.swift */; };
@@ -102,6 +105,7 @@
 
 /* Begin PBXFileReference section */
 		02DA1558AC9AC72F22DBEE02 /* GmailScanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailScanViewModel.swift; sourceTree = "<group>"; };
+		02F3A95FCBCE354CFFCA8620 /* RefreshScheduleEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshScheduleEngineTests.swift; sourceTree = "<group>"; };
 		05571B43FD75A0147A5C1C19 /* GmailScanReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailScanReviewView.swift; sourceTree = "<group>"; };
 		05878010E0F383B6B8BC29A1 /* SubscriptionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionViewModel.swift; sourceTree = "<group>"; };
 		0CCEE6D100A11E5F433A4D30 /* OpenAIUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIUsageView.swift; sourceTree = "<group>"; };
@@ -139,6 +143,7 @@
 		85DEE776A9266BA231AEB578 /* UtilizationBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationBarView.swift; sourceTree = "<group>"; };
 		8F2E63407813F784022CE601 /* ClaudeCodeLocalService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeLocalService.swift; sourceTree = "<group>"; };
 		90FF483C67D7FDBD986A4F2F /* GmailScannerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailScannerService.swift; sourceTree = "<group>"; };
+		91F0A46F38DCC8DD0BD859D5 /* RefreshScheduleEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshScheduleEngine.swift; sourceTree = "<group>"; };
 		94949E85B6764B161D41FB6A /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		9DC237E606F24637F9A601EE /* Subscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Subscription.swift; sourceTree = "<group>"; };
 		ADE7921A1D581761DFA9FBB3 /* SubscriptionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDetailView.swift; sourceTree = "<group>"; };
@@ -225,6 +230,7 @@
 				350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */,
 				6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */,
 				E253713B75A53F06153CB178 /* OneTimePurchaseEngineTests.swift */,
+				02F3A95FCBCE354CFFCA8620 /* RefreshScheduleEngineTests.swift */,
 				50433CBD802FBFA5C61B3EC3 /* RenewalProjectionEngineTests.swift */,
 				10872328B921E6DB176743E7 /* TopUpRecommendationEngineTests.swift */,
 			);
@@ -317,6 +323,7 @@
 				F0A8212ADFAC3215C2034562 /* NotificationService.swift */,
 				D94D448CB35A6BB35F9E82F8 /* OneTimePurchaseEngine.swift */,
 				72A69423B0EF440E1CFE4D81 /* OpenAIUsageService.swift */,
+				91F0A46F38DCC8DD0BD859D5 /* RefreshScheduleEngine.swift */,
 				73810AE3D0E40798D57F8965 /* RenewalProjectionEngine.swift */,
 				784FD25611C07CA6E7E86088 /* SubscriptionManager.swift */,
 				E43DCAD8B493CA8653ACC3D9 /* TopUpRecommendationEngine.swift */,
@@ -485,6 +492,8 @@
 				CA578435421EE44DB986A888 /* NotificationDecisionsTests.swift in Sources */,
 				2384206487498CB677BEB9AF /* OneTimePurchaseEngine.swift in Sources */,
 				A899DC1D9745EEF3014EAF89 /* OneTimePurchaseEngineTests.swift in Sources */,
+				7E4846CD729120B4F6AF6CEA /* RefreshScheduleEngine.swift in Sources */,
+				898C348FD39E5D345AFBDC1D /* RefreshScheduleEngineTests.swift in Sources */,
 				8C2C000673DDE1AFFD2FA995 /* RenewalProjectionEngine.swift in Sources */,
 				165CF59E5EBCB5ADA3A73671 /* RenewalProjectionEngineTests.swift in Sources */,
 				93383A64A813E5B738215B79 /* TopUpRecommendationEngine.swift in Sources */,
@@ -523,6 +532,7 @@
 				0E45E86762FDFCC280A8B47D /* OneTimePurchaseEngine.swift in Sources */,
 				160792F6A47211413C8E6A6F /* OpenAIUsageService.swift in Sources */,
 				7DBFD58696FB6488E30C44A1 /* OpenAIUsageView.swift in Sources */,
+				B03B58DD1BBBA5B2B5D2731D /* RefreshScheduleEngine.swift in Sources */,
 				C8496B14C8427D0A5499DED0 /* RenewalProjectionEngine.swift in Sources */,
 				03D5C2EAE60EEC4B9D772CF4 /* ScanProgressBanner.swift in Sources */,
 				903329407CB5B2A4C302573D /* SettingsView.swift in Sources */,

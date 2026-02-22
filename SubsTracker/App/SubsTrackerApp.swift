@@ -55,11 +55,10 @@ struct SubsTrackerApp: App {
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Bindable var subscriptionVM: SubscriptionViewModel
     @StateObject private var manager = SubscriptionManager.shared
     @AppStorage("currencyCode") private var currencyCode = "USD"
-    @AppStorage("refreshInterval") private var refreshInterval = 30
-    @AppStorage("lastRefreshAt") private var lastRefreshAt: Double = 0
 
     enum NavigationItem: Hashable {
         case dashboard
@@ -86,34 +85,17 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.3), value: gmailScanVM.isScanning)
         .onAppear {
             subscriptionVM.loadSubscriptions(context: modelContext)
-            manager.updateWidgetData(context: modelContext)
             Task {
-                // Request notification permission only when enabled in settings
-                if NotificationService.shared.isEnabled {
-                    await NotificationService.shared.requestPermissionIfNeeded()
-                }
-                NotificationService.shared.pruneOldKeys()
-
-                // Respect refreshInterval: 0 = never auto-refresh
-                var didRefresh = false
-                if refreshInterval > 0 {
-                    let elapsed = Date().timeIntervalSince1970 - lastRefreshAt
-                    let intervalSeconds = Double(refreshInterval) * 60
-                    if elapsed >= intervalSeconds {
-                        await manager.refreshAll(context: modelContext)
-                        subscriptionVM.loadSubscriptions(context: modelContext)
-                        lastRefreshAt = Date().timeIntervalSince1970
-                        didRefresh = true
-                    }
-                }
-
-                // Schedule notifications from local data only if refreshAll didn't already do it
-                if !didRefresh {
-                    await manager.scheduleNotifications(context: modelContext)
-                }
-
+                await manager.startAutoRefresh(context: modelContext)
                 await gmailScanVM.autoScanIfNeeded(context: modelContext)
                 subscriptionVM.loadSubscriptions(context: modelContext)
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                Task {
+                    await manager.handleSceneActive(context: modelContext)
+                }
             }
         }
     }

@@ -6,7 +6,6 @@ struct DashboardView: View {
     @State private var viewModel = DashboardViewModel()
     @StateObject private var manager = SubscriptionManager.shared
     @AppStorage("currencyCode") private var currencyCode = "USD"
-    @AppStorage("lastRefreshAt") private var lastRefreshAt: Double = 0
     @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
     @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
     @AppStorage("cashReserve") private var cashReserve: Double = 0
@@ -60,8 +59,7 @@ struct DashboardView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     Task {
-                        await manager.refreshAll(context: modelContext)
-                        lastRefreshAt = Date().timeIntervalSince1970
+                        await manager.manualRefresh(context: modelContext)
                     }
                 } label: {
                     if manager.isRefreshing {
@@ -148,6 +146,45 @@ struct DashboardView: View {
                 )
             }
 
+            refreshStatusRow
+        }
+    }
+
+    // MARK: - Refresh Status
+
+    private var refreshStatusRow: some View {
+        HStack(spacing: 16) {
+            if let last = manager.lastRefreshAtDate {
+                Label {
+                    Text("Refreshed \(last, style: .relative) ago")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "clock")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if manager.autoRefreshEnabled, let next = manager.nextRefreshDate, next > Date() {
+                Label {
+                    Text("Next \(next, style: .relative)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "arrow.clockwise.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(manager.autoRefreshEnabled ? Color.green : Color.secondary)
+                    .frame(width: 6, height: 6)
+                Text(manager.autoRefreshEnabled ? "Auto" : "Manual")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
