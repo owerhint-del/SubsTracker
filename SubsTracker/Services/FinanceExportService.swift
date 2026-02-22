@@ -148,13 +148,34 @@ enum FinanceExportService {
             throw ExportError.noData
         }
 
+        // Compute effective reserve (cash minus recent one-time purchases)
+        let purchaseSnapshots = purchases.map {
+            OneTimePurchaseEngine.PurchaseSnapshot(
+                name: $0.name, amount: $0.amount, date: $0.date, category: $0.purchaseCategory
+            )
+        }
+        let effectiveReserve = OneTimePurchaseEngine.effectiveReserve(
+            cashReserve: cashReserve,
+            purchases: purchaseSnapshots,
+            now: now
+        )
+
+        // Read top-up buffer settings for export summary
+        let bufferModeRaw = UserDefaults.standard.string(forKey: "topUpBufferMode") ?? TopUpBufferMode.fixed.rawValue
+        let bufferMode = TopUpBufferMode(rawValue: bufferModeRaw) ?? .fixed
+        let bufferValue = UserDefaults.standard.double(forKey: "topUpBufferValue")
+        let leadDays = UserDefaults.standard.integer(forKey: "topUpLeadDays")
+
         // Build payload
         let payload = FinanceExportEngine.buildPayload(
             subscriptions: exportSubs,
             usageRecords: exportUsage,
             oneTimePurchases: exportPurchases,
             period: period,
-            cashReserve: cashReserve,
+            cashReserve: effectiveReserve,
+            topUpBufferMode: bufferMode,
+            topUpBufferValue: bufferValue,
+            topUpLeadDays: max(1, leadDays),
             currencyCode: currencyCode,
             now: now
         )

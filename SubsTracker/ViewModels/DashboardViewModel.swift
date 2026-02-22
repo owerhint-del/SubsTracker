@@ -22,6 +22,12 @@ final class DashboardViewModel {
     // Renewal projection setting — set by the View before loadData()
     var autoCorrectRenewalDates: Bool = true
 
+    // Top-up recommendation settings — set by the View before loadData()
+    var topUpEnabled: Bool = true
+    var topUpBufferMode: TopUpBufferMode = .fixed
+    var topUpBufferValue: Double = 50
+    var topUpLeadDays: Int = 2
+
     // MARK: - Monthly Spend Engine
 
     /// Recurring subscriptions normalized to monthly cost
@@ -215,6 +221,33 @@ final class DashboardViewModel {
             usageDaysOfData: daysOfData,
             cashReserve: effectiveReserve,
             now: now
+        )
+    }
+
+    // MARK: - Top-Up Recommendation
+
+    /// Top-up recommendation computed from funding planner result.
+    var topUpRecommendation: TopUpRecommendation {
+        guard topUpEnabled else {
+            return TopUpRecommendation(
+                recommendedAmount: 0,
+                recommendedDate: nil,
+                urgency: .none,
+                reason: "Top-up recommendations are disabled."
+            )
+        }
+
+        return TopUpRecommendationEngine.calculate(
+            plannerResult: fundingPlannerResult,
+            cashReserve: OneTimePurchaseEngine.effectiveReserve(
+                cashReserve: cashReserve,
+                purchases: purchaseSnapshots,
+                now: Date()
+            ),
+            bufferMode: topUpBufferMode,
+            bufferValue: topUpBufferValue,
+            leadDays: topUpLeadDays,
+            now: Date()
         )
     }
 

@@ -64,17 +64,17 @@ enum NotificationDecisions {
         return nil
     }
 
-    // MARK: - Shortfall Alert
+    // MARK: - Top-Up Alert (replaces shortfall alert)
 
-    /// Returns a dedup key if a funding shortfall notification should fire, or nil.
-    /// Fires once per month when shortfall > 0.
-    static func shortfallAlert(
-        shortfall: Double,
+    /// Returns a dedup key if a top-up recommendation notification should fire, or nil.
+    /// Fires once per month when a top-up is needed (recommendedAmount > 0).
+    static func topUpAlert(
+        recommendedAmount: Double,
         sentKeys: Set<String>,
         yearMonth: Int
     ) -> String? {
-        guard shortfall > 0 else { return nil }
-        let dedupKey = "shortfall:\(yearMonth)"
+        guard recommendedAmount > 0 else { return nil }
+        let dedupKey = "topup:\(yearMonth)"
         guard !sentKeys.contains(dedupKey) else { return nil }
         return dedupKey
     }

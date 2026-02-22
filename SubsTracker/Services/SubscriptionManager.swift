@@ -14,7 +14,14 @@ final class SubscriptionManager: ObservableObject {
     @Published var isRefreshing = false
     @Published var lastError: String?
 
-    private init() {}
+    private init() {
+        // Register defaults matching @AppStorage defaults in Views
+        UserDefaults.standard.register(defaults: [
+            "topUpEnabled": true,
+            "topUpBufferValue": 50.0,
+            "topUpLeadDays": 2
+        ])
+    }
 
     // MARK: - Refresh All
 
@@ -93,10 +100,10 @@ final class SubscriptionManager: ObservableObject {
         let currency = UserDefaults.standard.string(forKey: "currencyCode") ?? "USD"
         let cashReserve = UserDefaults.standard.double(forKey: "cashReserve")
 
-        // Compute funding planner for shortfall notification
-        var shortfall = 0.0
-        var depletionDate: Date?
-        if cashReserve > 0 {
+        // Compute top-up recommendation for notification
+        var topUpRec: TopUpRecommendation?
+        let topUpEnabled = UserDefaults.standard.object(forKey: "topUpEnabled") as? Bool ?? true
+        if topUpEnabled && cashReserve > 0 {
             let plannerSubs = subscriptions.map { sub in
                 PlannerSubscription(
                     name: sub.name,
@@ -121,15 +128,41 @@ final class SubscriptionManager: ObservableObject {
                 usageDaysOfData = 0
             }
 
-            let result = FundingPlannerEngine.calculate(
+            // Use effectiveReserve (deducting recent one-time purchases)
+            let purchaseDescriptor = FetchDescriptor<OneTimePurchase>()
+            let purchases = (try? context.fetch(purchaseDescriptor)) ?? []
+            let purchaseSnapshots = purchases.map {
+                OneTimePurchaseEngine.PurchaseSnapshot(
+                    name: $0.name, amount: $0.amount, date: $0.date, category: $0.purchaseCategory
+                )
+            }
+            let effectiveReserve = OneTimePurchaseEngine.effectiveReserve(
+                cashReserve: cashReserve,
+                purchases: purchaseSnapshots,
+                now: now
+            )
+
+            let plannerResult = FundingPlannerEngine.calculate(
                 subscriptions: plannerSubs,
                 usageCosts: usageCosts,
                 usageDaysOfData: usageDaysOfData,
-                cashReserve: cashReserve,
+                cashReserve: effectiveReserve,
                 now: now
             )
-            shortfall = result.shortfall
-            depletionDate = result.depletionDate
+
+            let bufferModeRaw = UserDefaults.standard.string(forKey: "topUpBufferMode") ?? TopUpBufferMode.fixed.rawValue
+            let bufferMode = TopUpBufferMode(rawValue: bufferModeRaw) ?? .fixed
+            let bufferValue = UserDefaults.standard.double(forKey: "topUpBufferValue")
+            let leadDays = UserDefaults.standard.integer(forKey: "topUpLeadDays")
+
+            topUpRec = TopUpRecommendationEngine.calculate(
+                plannerResult: plannerResult,
+                cashReserve: effectiveReserve,
+                bufferMode: bufferMode,
+                bufferValue: bufferValue,
+                leadDays: max(1, leadDays),
+                now: now
+            )
         }
 
         await notificationService.scheduleNotifications(
@@ -138,8 +171,7 @@ final class SubscriptionManager: ObservableObject {
             monthlyBudget: budget,
             alertThresholdPercent: threshold > 0 ? threshold : 90,
             currencyCode: currency,
-            fundingShortfall: shortfall,
-            depletionDate: depletionDate
+            topUpRecommendation: topUpRec
         )
     }
 

@@ -11,6 +11,10 @@ struct DashboardView: View {
     @AppStorage("alertThresholdPercent") private var alertThresholdPercent: Int = 90
     @AppStorage("cashReserve") private var cashReserve: Double = 0
     @AppStorage("autoCorrectRenewalDates") private var autoCorrectRenewalDates = true
+    @AppStorage("topUpEnabled") private var topUpEnabled = true
+    @AppStorage("topUpBufferMode") private var topUpBufferMode = TopUpBufferMode.fixed.rawValue
+    @AppStorage("topUpBufferValue") private var topUpBufferValue: Double = 50
+    @AppStorage("topUpLeadDays") private var topUpLeadDays: Int = 2
 
     // Export state
     @State private var showExportSheet = false
@@ -42,6 +46,7 @@ struct DashboardView: View {
                 header
                 budgetAlertBanner
                 fundingPlannerSection
+                topUpRecommendationSection
                 spendBreakdownSection
                 CostPieChartView(data: viewModel.costByCategory)
                 upcomingPaymentsSection
@@ -98,6 +103,10 @@ struct DashboardView: View {
         .onChange(of: alertThresholdPercent) { syncBudgetSettings() }
         .onChange(of: cashReserve) { syncBudgetSettings() }
         .onChange(of: autoCorrectRenewalDates) { syncBudgetSettings() }
+        .onChange(of: topUpEnabled) { syncBudgetSettings() }
+        .onChange(of: topUpBufferMode) { syncBudgetSettings() }
+        .onChange(of: topUpBufferValue) { syncBudgetSettings() }
+        .onChange(of: topUpLeadDays) { syncBudgetSettings() }
     }
 
     // MARK: - Header Stats
@@ -472,6 +481,86 @@ struct DashboardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
+    // MARK: - Top-Up Recommendation
+
+    @ViewBuilder
+    private var topUpRecommendationSection: some View {
+        if topUpEnabled && cashReserve > 0 {
+            let rec = viewModel.topUpRecommendation
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "arrow.up.circle")
+                        .foregroundStyle(urgencyColor(rec.urgency))
+                    Text("Top-Up Recommendation")
+                        .font(.headline)
+                    if rec.urgency != .none {
+                        Text(rec.urgency.rawValue)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(urgencyColor(rec.urgency))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(urgencyColor(rec.urgency).opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                    Spacer()
+                }
+
+                if rec.recommendedAmount > 0 {
+                    HStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Top up")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(CurrencyFormatter.format(rec.recommendedAmount, code: currencyCode))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(urgencyColor(rec.urgency))
+                        }
+
+                        if let date = rec.recommendedDate {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Before")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(date, style: .date)
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+
+                        Spacer()
+                    }
+
+                    Text(rec.reason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                        Text("No top-up needed — your reserve covers the next 30 days.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding()
+            .background(.background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private func urgencyColor(_ urgency: TopUpUrgency) -> Color {
+        switch urgency {
+        case .none: return .green
+        case .low: return .blue
+        case .medium: return .orange
+        case .high: return .red
+        }
+    }
+
     // MARK: - One-Time Purchases
 
     private var oneTimePurchasesSection: some View {
@@ -728,6 +817,10 @@ struct DashboardView: View {
         viewModel.alertThresholdPercent = Double(alertThresholdPercent)
         viewModel.cashReserve = cashReserve
         viewModel.autoCorrectRenewalDates = autoCorrectRenewalDates
+        viewModel.topUpEnabled = topUpEnabled
+        viewModel.topUpBufferMode = TopUpBufferMode(rawValue: topUpBufferMode) ?? .fixed
+        viewModel.topUpBufferValue = topUpBufferValue
+        viewModel.topUpLeadDays = topUpLeadDays
     }
 
     // MARK: - Recent Usage

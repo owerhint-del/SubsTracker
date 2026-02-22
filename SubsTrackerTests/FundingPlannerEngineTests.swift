@@ -266,34 +266,34 @@ final class FundingPlannerEngineTests: XCTestCase {
     }
 }
 
-// MARK: - Shortfall Notification Decision
+// MARK: - Top-Up Notification Decision
 
-final class ShortfallDecisionTests: XCTestCase {
+final class TopUpDecisionTests: XCTestCase {
 
-    func testShortfallAlert_Positive_ReturnsDedupKey() {
-        let key = NotificationDecisions.shortfallAlert(
-            shortfall: 50,
+    func testTopUpAlert_Positive_ReturnsDedupKey() {
+        let key = NotificationDecisions.topUpAlert(
+            recommendedAmount: 150,
             sentKeys: [],
             yearMonth: 202602
         )
 
-        XCTAssertEqual(key, "shortfall:202602")
+        XCTAssertEqual(key, "topup:202602")
     }
 
-    func testShortfallAlert_Zero_ReturnsNil() {
-        let key = NotificationDecisions.shortfallAlert(
-            shortfall: 0,
+    func testTopUpAlert_Zero_ReturnsNil() {
+        let key = NotificationDecisions.topUpAlert(
+            recommendedAmount: 0,
             sentKeys: [],
             yearMonth: 202602
         )
 
-        XCTAssertNil(key, "No shortfall should not trigger alert")
+        XCTAssertNil(key, "No top-up needed should not trigger alert")
     }
 
-    func testShortfallAlert_AlreadySent_ReturnsNil() {
-        let key = NotificationDecisions.shortfallAlert(
-            shortfall: 50,
-            sentKeys: ["shortfall:202602"],
+    func testTopUpAlert_AlreadySent_ReturnsNil() {
+        let key = NotificationDecisions.topUpAlert(
+            recommendedAmount: 150,
+            sentKeys: ["topup:202602"],
             yearMonth: 202602
         )
 

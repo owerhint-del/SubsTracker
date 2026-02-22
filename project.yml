@@ -36,6 +36,7 @@ targets:
       - path: SubsTracker/Services/FinanceExportEngine.swift
       - path: SubsTracker/Services/OneTimePurchaseEngine.swift
       - path: SubsTracker/Services/RenewalProjectionEngine.swift
+      - path: SubsTracker/Services/TopUpRecommendationEngine.swift
       - path: SubsTracker/Models/Enums.swift
       - path: SubsTracker/Models/GmailModels.swift
     settings:

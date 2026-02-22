@@ -12,6 +12,12 @@ struct SettingsView: View {
     // Renewal projection
     @AppStorage("autoCorrectRenewalDates") private var autoCorrectRenewalDates = true
 
+    // Top-up strategy
+    @AppStorage("topUpEnabled") private var topUpEnabled = true
+    @AppStorage("topUpBufferMode") private var topUpBufferMode = TopUpBufferMode.fixed.rawValue
+    @AppStorage("topUpBufferValue") private var topUpBufferValue: Double = 50
+    @AppStorage("topUpLeadDays") private var topUpLeadDays: Int = 2
+
     // Notification settings
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("quietHoursEnabled") private var quietHoursEnabled = false
@@ -168,6 +174,56 @@ struct SettingsView: View {
                 Text("Project past renewal dates forward for planning and notifications")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            // Top-Up Strategy
+            Section("Top-Up Strategy") {
+                Toggle("Enable top-up recommendations", isOn: $topUpEnabled)
+
+                if topUpEnabled {
+                    Picker("Buffer mode", selection: $topUpBufferMode) {
+                        Text("Fixed Amount").tag(TopUpBufferMode.fixed.rawValue)
+                        Text("Percent of Required").tag(TopUpBufferMode.percent.rawValue)
+                    }
+
+                    if topUpBufferMode == TopUpBufferMode.fixed.rawValue {
+                        HStack {
+                            Text("Buffer amount")
+                            Spacer()
+                            TextField("50", value: $topUpBufferValue, format: .currency(code: currencyCode))
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 120)
+                        }
+                        Text("Added on top of the shortfall for safety margin")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        HStack {
+                            Text("Buffer percent")
+                            Spacer()
+                            TextField("10", value: $topUpBufferValue, format: .number)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                            Text("%")
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("Percentage of 30-day required amount added as buffer")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Picker("Lead days before deadline", selection: $topUpLeadDays) {
+                        Text("1 day").tag(1)
+                        Text("2 days").tag(2)
+                        Text("3 days").tag(3)
+                        Text("5 days").tag(5)
+                        Text("7 days").tag(7)
+                    }
+
+                    Text("How many days before depletion to recommend the top-up")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             // Notifications

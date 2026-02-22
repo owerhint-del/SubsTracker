@@ -52,6 +52,9 @@ enum FinanceExportEngine {
         let fundingRequired30d: Double
         let shortfall: Double
         let depletionDate: Date?
+        let recommendedTopUpAmount: Double
+        let recommendedTopUpDate: Date?
+        let topUpUrgency: String
         let subscriptionCount: Int
         let usageRecordCount: Int
         let oneTimePurchaseCount: Int
@@ -104,6 +107,9 @@ enum FinanceExportEngine {
         usageRecords: [ExportUsageRecord],
         oneTimePurchases: [ExportOneTimePurchase] = [],
         cashReserve: Double,
+        topUpBufferMode: TopUpBufferMode = .fixed,
+        topUpBufferValue: Double = 0,
+        topUpLeadDays: Int = 2,
         now: Date
     ) -> ExportSummary {
         let recurring = subscriptions.reduce(0.0) { $0 + $1.cost * $1.billingCycle.monthlyCostMultiplier }
@@ -133,6 +139,16 @@ enum FinanceExportEngine {
             now: now
         )
 
+        // Compute top-up recommendation from planner result
+        let topUp = TopUpRecommendationEngine.calculate(
+            plannerResult: result,
+            cashReserve: cashReserve,
+            bufferMode: topUpBufferMode,
+            bufferValue: topUpBufferValue,
+            leadDays: max(1, topUpLeadDays),
+            now: now
+        )
+
         return ExportSummary(
             recurringMonthlySpend: recurring,
             variableSpend: variable,
@@ -141,6 +157,9 @@ enum FinanceExportEngine {
             fundingRequired30d: result.requiredNext30Days,
             shortfall: result.shortfall,
             depletionDate: result.depletionDate,
+            recommendedTopUpAmount: topUp.recommendedAmount,
+            recommendedTopUpDate: topUp.recommendedDate,
+            topUpUrgency: topUp.urgency.rawValue,
             subscriptionCount: subscriptions.count,
             usageRecordCount: usageRecords.count,
             oneTimePurchaseCount: oneTimePurchases.count
@@ -154,6 +173,9 @@ enum FinanceExportEngine {
         oneTimePurchases: [ExportOneTimePurchase] = [],
         period: ExportPeriod,
         cashReserve: Double,
+        topUpBufferMode: TopUpBufferMode = .fixed,
+        topUpBufferValue: Double = 0,
+        topUpLeadDays: Int = 2,
         currencyCode: String,
         now: Date
     ) -> ExportPayload {
@@ -166,6 +188,9 @@ enum FinanceExportEngine {
             usageRecords: filteredUsage,
             oneTimePurchases: filteredPurchases,
             cashReserve: cashReserve,
+            topUpBufferMode: topUpBufferMode,
+            topUpBufferValue: topUpBufferValue,
+            topUpLeadDays: topUpLeadDays,
             now: now
         )
 
@@ -215,6 +240,13 @@ enum FinanceExportEngine {
         lines.append("Usage Record Count,\(payload.summary.usageRecordCount)")
         if payload.summary.oneTimePurchaseCount > 0 {
             lines.append("One-Time Purchase Count,\(payload.summary.oneTimePurchaseCount)")
+        }
+        if payload.summary.recommendedTopUpAmount > 0 {
+            lines.append("Recommended Top-Up Amount,\(formatCSVNumber(payload.summary.recommendedTopUpAmount))")
+            if let topUpDate = payload.summary.recommendedTopUpDate {
+                lines.append("Recommended Top-Up Date,\(df.string(from: topUpDate))")
+            }
+            lines.append("Top-Up Urgency,\(payload.summary.topUpUrgency)")
         }
         lines.append("")
 
@@ -280,6 +312,13 @@ enum FinanceExportEngine {
         ]
         if let depletion = payload.summary.depletionDate {
             summaryDict["depletion_date"] = df.string(from: depletion)
+        }
+        if payload.summary.recommendedTopUpAmount > 0 {
+            summaryDict["recommended_topup_amount"] = roundToTwoCents(payload.summary.recommendedTopUpAmount)
+            if let topUpDate = payload.summary.recommendedTopUpDate {
+                summaryDict["recommended_topup_date"] = df.string(from: topUpDate)
+            }
+            summaryDict["topup_urgency"] = payload.summary.topUpUrgency
         }
         json["summary"] = summaryDict
 
