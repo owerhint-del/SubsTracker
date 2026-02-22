@@ -32,7 +32,9 @@ targets:
       - path: SubsTrackerTests
       - path: SubsTracker/Services/FundingPlannerEngine.swift
       - path: SubsTracker/Services/NotificationDecisions.swift
+      - path: SubsTracker/Services/GmailSignalEngine.swift
       - path: SubsTracker/Models/Enums.swift
+      - path: SubsTracker/Models/GmailModels.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.owerhintdel.substracker.tests

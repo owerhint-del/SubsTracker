@@ -87,6 +87,25 @@ struct GmailScanReviewView: View {
                             }
                             .foregroundStyle(.secondary)
 
+                            HStack(spacing: 4) {
+                                // Cost source badge
+                                Text(candidate.costSourceLabel)
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(candidate.isEstimated ? Color.yellow.opacity(0.15) : Color.blue.opacity(0.15))
+                                    .foregroundStyle(candidate.isEstimated ? .orange : .blue)
+                                    .clipShape(Capsule())
+
+                                if let evidence = candidate.evidence, !evidence.isEmpty {
+                                    Text(evidence)
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                        .lineLimit(1)
+                                }
+                            }
+
                             if let notes = candidate.notes, !notes.isEmpty {
                                 Text(notes)
                                     .font(.caption2)

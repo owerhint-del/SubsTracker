@@ -38,16 +38,28 @@ struct EmailMetadata {
     let snippet: String
 }
 
+// MARK: - Cost Source
+
+enum CostSource: String {
+    case subject
+    case snippet
+    case body
+    case estimated
+}
+
 // MARK: - Sender Summary (aggregated from multiple emails)
 
 struct SenderSummary {
     let senderName: String
     let senderDomain: String
+    let queryDomain: String     // real email sender domain for Gmail queries (differs from senderDomain for processor splits)
     let emailCount: Int
     let amounts: [Double]
     let latestSubject: String
     let latestDate: Date
     let latestSnippet: String
+    var billingScore: Double = 0
+    var bodyText: String?       // populated by selective body fetch
 }
 
 // MARK: - Subscription Candidate (found by AI)
@@ -63,6 +75,9 @@ struct SubscriptionCandidate: Identifiable {
     var isSelected: Bool = true
     var sourceEmailCount: Int = 1
     var notes: String?
+    var costSource: CostSource = .estimated
+    var isEstimated: Bool = true
+    var evidence: String?
 
     var confidenceLabel: String {
         if confidence >= 0.9 { return "High" }
@@ -74,5 +89,9 @@ struct SubscriptionCandidate: Identifiable {
         if confidence >= 0.9 { return "green" }
         if confidence >= 0.7 { return "orange" }
         return "red"
+    }
+
+    var costSourceLabel: String {
+        isEstimated ? "Estimated" : "Extracted"
     }
 }

@@ -17,6 +17,7 @@
 		22464A9A8F8AD7361E1511DD /* ClaudeUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2868D79781237129D353FFB5 /* ClaudeUsageView.swift */; };
 		32C172D11ACD1720B09AFAF2 /* UtilizationBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DEE776A9266BA231AEB578 /* UtilizationBarView.swift */; };
 		3D27BD20C05DD844445085D3 /* SubsTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AAF0680827A86906A94BF4 /* SubsTrackerApp.swift */; };
+		5171F2AD81AD9F100DB11E21 /* GmailSignalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */; };
 		51756EB01271F7EC9BDBBEFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E09DFFED04A2B76E346541A6 /* Assets.xcassets */; };
 		534B6454316B332104962645 /* UsageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4668E14DAEDB5024C93EB3 /* UsageViewModel.swift */; };
 		53ECFA7570052878A0F54021 /* UsageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E246A94F529EB9B6A017E3D /* UsageChartView.swift */; };
@@ -38,7 +39,9 @@
 		A03FEE753AA00FCA5A842492 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3B538E45334B823AB53E3A /* Enums.swift */; };
 		A109D91D2142BF00AD67F113 /* GmailScanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02DA1558AC9AC72F22DBEE02 /* GmailScanViewModel.swift */; };
 		AEAA8290797F3E78AB1BAAAF /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A8212ADFAC3215C2034562 /* NotificationService.swift */; };
+		AEFB25553C826CEAAA5873E3 /* GmailSignalEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */; };
 		B251888E31FF411B1C77A26A /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF836713C899BECDB1461094 /* WidgetData.swift */; };
+		B6AC9DB751591352386E4975 /* GmailSignalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */; };
 		BC61D29ACCAD8C8EF9A738E9 /* FundingPlannerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65FD4DF45E78A1F29FF7B7CF /* FundingPlannerEngine.swift */; };
 		BCF783D6E502442254CE1B24 /* SubscriptionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15650DDA046EDBB37FC189E4 /* SubscriptionListView.swift */; };
 		C0BE01BEEA89FA02C727B51B /* Subscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC237E606F24637F9A601EE /* Subscription.swift */; };
@@ -47,6 +50,7 @@
 		CBC654FE6C6A5191D71A3329 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B810032AFD162213C3010 /* CurrencyFormatter.swift */; };
 		CFFAE1525FB6CC6E88E08961 /* AppGroupConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A7A815CDC3778875CA65B3 /* AppGroupConstants.swift */; };
 		D130F2C4C824287A62FCADC5 /* FundingPlannerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65FD4DF45E78A1F29FF7B7CF /* FundingPlannerEngine.swift */; };
+		D542F53F61A30A57AFDA542D /* GmailModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C3CE2626BACA38FBB03607 /* GmailModels.swift */; };
 		DA2979D9AB0642719EF2E19F /* ClaudeAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B55B74D53AA2919E0C02778 /* ClaudeAPIService.swift */; };
 		DB80C2C72EE370142549A154 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3B2537D3EEA1C72F95C43EC /* DashboardView.swift */; };
 		DBDFA22A09F44DA6DC33073C /* AddSubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE34E42C3005BDA8D004BF6 /* AddSubscriptionView.swift */; };
@@ -93,6 +97,7 @@
 		2868D79781237129D353FFB5 /* ClaudeUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeUsageView.swift; sourceTree = "<group>"; };
 		29C3CE2626BACA38FBB03607 /* GmailModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModels.swift; sourceTree = "<group>"; };
 		31108CA3ADA7590E9C6688CE /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailSignalEngineTests.swift; sourceTree = "<group>"; };
 		37A7A815CDC3778875CA65B3 /* AppGroupConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupConstants.swift; sourceTree = "<group>"; };
 		3CED70A3E8F7F47053DC1117 /* GmailOAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailOAuthService.swift; sourceTree = "<group>"; };
 		3F8C17D06207EB3BFFE1F796 /* SubsTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SubsTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -107,6 +112,7 @@
 		6B55B74D53AA2919E0C02778 /* ClaudeAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAPIService.swift; sourceTree = "<group>"; };
 		6C320727B46B68A25DF5AF84 /* SubsTrackerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsTrackerWidget.swift; sourceTree = "<group>"; };
 		6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDecisionsTests.swift; sourceTree = "<group>"; };
+		6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailSignalEngine.swift; sourceTree = "<group>"; };
 		6F7181217A595C249F5060A1 /* SubsTrackerWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsTrackerWidgetBundle.swift; sourceTree = "<group>"; };
 		72A69423B0EF440E1CFE4D81 /* OpenAIUsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIUsageService.swift; sourceTree = "<group>"; };
 		784FD25611C07CA6E7E86088 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
@@ -190,6 +196,7 @@
 			isa = PBXGroup;
 			children = (
 				590C5BDFD1C1B55B7DF3ECA8 /* FundingPlannerEngineTests.swift */,
+				350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */,
 				6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */,
 			);
 			path = SubsTrackerTests;
@@ -273,6 +280,7 @@
 				65FD4DF45E78A1F29FF7B7CF /* FundingPlannerEngine.swift */,
 				3CED70A3E8F7F47053DC1117 /* GmailOAuthService.swift */,
 				90FF483C67D7FDBD986A4F2F /* GmailScannerService.swift */,
+				6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */,
 				31108CA3ADA7590E9C6688CE /* KeychainService.swift */,
 				11613571515348A97F3AA4DE /* NotificationDecisions.swift */,
 				F0A8212ADFAC3215C2034562 /* NotificationService.swift */,
@@ -434,6 +442,9 @@
 				0F3BD5A6829CB13C62D1A0F0 /* Enums.swift in Sources */,
 				BC61D29ACCAD8C8EF9A738E9 /* FundingPlannerEngine.swift in Sources */,
 				9C906CAACF6CA6CD29C8AF0F /* FundingPlannerEngineTests.swift in Sources */,
+				D542F53F61A30A57AFDA542D /* GmailModels.swift in Sources */,
+				5171F2AD81AD9F100DB11E21 /* GmailSignalEngine.swift in Sources */,
+				AEFB25553C826CEAAA5873E3 /* GmailSignalEngineTests.swift in Sources */,
 				6941C2369B8A6574BE257896 /* NotificationDecisions.swift in Sources */,
 				CA578435421EE44DB986A888 /* NotificationDecisionsTests.swift in Sources */,
 			);
@@ -460,6 +471,7 @@
 				A109D91D2142BF00AD67F113 /* GmailScanViewModel.swift in Sources */,
 				FB925EE4D086F6D15DFBC267 /* GmailScannerService.swift in Sources */,
 				126750A0D1BEC6C998408E19 /* GmailSettingsSection.swift in Sources */,
+				B6AC9DB751591352386E4975 /* GmailSignalEngine.swift in Sources */,
 				FC1A194150D32EC38C74063F /* KeychainService.swift in Sources */,
 				0C40B06FD1860993C330516E /* NotificationDecisions.swift in Sources */,
 				AEAA8290797F3E78AB1BAAAF /* NotificationService.swift in Sources */,

@@ -83,10 +83,8 @@ final class GmailScanViewModel {
         let existing = (try? context.fetch(descriptor)) ?? []
 
         for candidate in candidates {
-            let normalizedName = candidate.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-
             if let match = existing.first(where: {
-                $0.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == normalizedName
+                GmailSignalEngine.namesMatch($0.name, candidate.name)
             }) {
                 // Update existing subscription with fresh data from emails
                 if let renewalDate = candidate.renewalDate {
