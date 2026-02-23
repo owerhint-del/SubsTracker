@@ -18,6 +18,10 @@ struct GmailSettingsSection: View {
                 .font(.callout)
                 .fontWeight(.medium)
 
+            Text("Use your own Google Cloud OAuth credentials")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             SecureField("Client ID", text: $clientId)
                 .textFieldStyle(.roundedBorder)
 
@@ -39,7 +43,14 @@ struct GmailSettingsSection: View {
                 }
             }
 
-            Text("Create at console.cloud.google.com — enable Gmail API, add Desktop OAuth client")
+            VStack(alignment: .leading, spacing: 4) {
+                Link("Google Cloud Console", destination: URL(string: "https://console.cloud.google.com/")!)
+                Link("Enable Gmail API", destination: URL(string: "https://console.cloud.google.com/apis/library/gmail.googleapis.com")!)
+                Link("OAuth Credentials Page", destination: URL(string: "https://console.cloud.google.com/apis/credentials")!)
+            }
+            .font(.caption)
+
+            Text("Enable Gmail API, create a Desktop OAuth client, then paste Client ID and Secret above")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

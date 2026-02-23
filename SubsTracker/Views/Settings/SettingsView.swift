@@ -47,6 +47,10 @@ struct SettingsView: View {
                         .font(.callout)
                         .fontWeight(.medium)
 
+                    Text("Use your own OpenAI API key")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     HStack {
                         if showingKey {
                             TextField("sk-...", text: $openAIKey)
@@ -68,6 +72,9 @@ struct SettingsView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                     }
+
+                    Link("Get your API key at platform.openai.com", destination: URL(string: "https://platform.openai.com/api-keys")!)
+                        .font(.caption)
 
                     Text("Stored securely in macOS Keychain")
                         .font(.caption)

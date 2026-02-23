@@ -43,28 +43,7 @@ final class GmailOAuthService {
     private var oauthListener: NWListener?
 
     private init() {
-        importCredentialsFromTGAssist()
         loadConnectionState()
-    }
-
-    // MARK: - Import from TGAssist
-
-    /// Auto-import Google OAuth credentials from TGAssist's Keychain if we don't have our own yet
-    private func importCredentialsFromTGAssist() {
-        let keychain = KeychainService.shared
-        let tgAssistService = "com.tgassist.app"
-
-        // Only import if SubsTracker doesn't already have credentials
-        if keychain.retrieve(key: KeychainService.gmailClientId) == nil {
-            if let clientId = keychain.readExternalService(tgAssistService, account: "gmail_client_id") {
-                try? keychain.save(key: KeychainService.gmailClientId, value: clientId)
-            }
-        }
-        if keychain.retrieve(key: KeychainService.gmailClientSecret) == nil {
-            if let clientSecret = keychain.readExternalService(tgAssistService, account: "gmail_client_secret") {
-                try? keychain.save(key: KeychainService.gmailClientSecret, value: clientSecret)
-            }
-        }
     }
 
     // MARK: - Connection State
