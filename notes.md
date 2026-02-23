@@ -6,10 +6,10 @@ A native macOS app (SwiftUI + SwiftData) to track all your subscriptions in one 
 ## Key Decisions
 
 ### Why local file reading for Claude?
-You're on a personal Claude Max plan with no Admin API access. But since this is a Mac app, we can read `~/.claude/stats-cache.json` directly — no API key needed. This is the main advantage of going native.
+Claude Max plans have no Admin API access. But since this is a Mac app, we can read `~/.claude/stats-cache.json` directly — no API key needed. This is the main advantage of going native.
 
 ### Why no App Sandbox?
-The app needs to read files from `~/.claude/` and access the macOS Keychain freely. Sandboxing would require additional entitlements and complicate filesystem access. Since this is a personal app (not App Store), sandbox is disabled.
+The app needs to read files from `~/.claude/` and access the macOS Keychain freely. Sandboxing would require additional entitlements and complicate filesystem access. Since this is not distributed via App Store, sandbox is disabled.
 
 ### Architecture: MVVM + Services
 - **Models**: SwiftData `@Model` classes (Subscription, UsageRecord)
@@ -45,7 +45,7 @@ Models seen: `claude-opus-4-6`, `claude-opus-4-5-20251101`, `claude-sonnet-4-5-2
 
 ## Build
 ```bash
-cd "$HOME/Projects/iOS/Subs tracker"
+cd /path/to/SubsTracker
 xcodegen generate
 xcodebuild -scheme SubsTracker -destination 'platform=macOS' build
 ```
