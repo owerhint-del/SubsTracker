@@ -13,6 +13,16 @@ xcuserdata/
 # Claude
 .claude/settings.local.json
 
+# Secrets (safety net)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p8
+*.p12
+*.pfx
+
 # SPM
 .build/
 Package.resolved
