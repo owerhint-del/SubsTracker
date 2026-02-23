@@ -22,6 +22,9 @@ struct SettingsView: View {
     @AppStorage("backgroundRefreshEnabled") private var backgroundRefreshEnabled = true
     @AppStorage("energyPolicy") private var energyPolicy = EnergyPolicy.balanced.rawValue
 
+    // Usage polling
+    @AppStorage("usageRefreshSeconds") private var usageRefreshSeconds = 10
+
     // Notification settings
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("quietHoursEnabled") private var quietHoursEnabled = false
@@ -151,6 +154,16 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                Picker("Usage live refresh", selection: $usageRefreshSeconds) {
+                    Text("Off").tag(0)
+                    Text("Every 10s (Recommended)").tag(10)
+                    Text("Every 5s (High load)").tag(5)
+                }
+
+                Text("Real-time polling for Claude/OpenAI/Codex usage screens")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             // Background Refresh

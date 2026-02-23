@@ -69,6 +69,7 @@ struct ContentView: View {
 
     @State private var selectedNavItem: NavigationItem? = .dashboard
     @State private var gmailScanVM = GmailScanViewModel()
+    @State private var pollingCoordinator = UsagePollingCoordinator()
 
     var body: some View {
         NavigationSplitView {
@@ -95,6 +96,7 @@ struct ContentView: View {
             Task {
                 await manager.handleScenePhaseChange(isActive: newPhase == .active, context: modelContext)
             }
+            pollingCoordinator.scenePhaseChanged(isActive: newPhase == .active)
         }
     }
 
@@ -162,9 +164,9 @@ struct ContentView: View {
         case .dashboard, .none:
             DashboardView()
         case .claudeUsage:
-            ClaudeUsageView(viewModel: usageVM)
+            ClaudeUsageView(viewModel: usageVM, polling: pollingCoordinator)
         case .openAIUsage:
-            OpenAIUsageView(viewModel: usageVM)
+            OpenAIUsageView(viewModel: usageVM, polling: pollingCoordinator)
         case .subscription(let sub):
             SubscriptionDetailView(subscription: sub)
         }

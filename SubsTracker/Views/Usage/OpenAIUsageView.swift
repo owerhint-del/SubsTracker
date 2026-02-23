@@ -3,12 +3,16 @@ import Charts
 
 struct OpenAIUsageView: View {
     @Bindable var viewModel: UsageViewModel
+    var polling: UsagePollingCoordinator
     @AppStorage("currencyCode") private var currencyCode = "USD"
     @State private var showingAPIKeySheet = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Live status indicator
+                pollingStatusRow
+
                 // Codex CLI errors
                 if let error = viewModel.codexError {
                     errorBanner(error) {
@@ -64,6 +68,22 @@ struct OpenAIUsageView: View {
         }
         .onAppear {
             refreshAll()
+            polling.startPolling { await pollingRefresh() }
+        }
+        .onDisappear {
+            polling.stopPolling()
+        }
+    }
+
+    private var pollingStatusRow: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(polling.isLive ? Color.green : Color.secondary)
+                .frame(width: 6, height: 6)
+            Text(polling.statusLabel)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Spacer()
         }
     }
 
@@ -74,6 +94,15 @@ struct OpenAIUsageView: View {
         if viewModel.hasOpenAIKey {
             Task { await viewModel.loadOpenAIData() }
         }
+    }
+
+    /// Called by the polling coordinator on each tick.
+    private func pollingRefresh() async -> Bool {
+        await viewModel.loadCodexData()
+        if viewModel.hasOpenAIKey {
+            await viewModel.loadOpenAIData()
+        }
+        return viewModel.codexError == nil && viewModel.openAIError == nil
     }
 
     // MARK: - Codex Utilization

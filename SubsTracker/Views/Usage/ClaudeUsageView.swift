@@ -3,11 +3,15 @@ import Charts
 
 struct ClaudeUsageView: View {
     @Bindable var viewModel: UsageViewModel
+    var polling: UsagePollingCoordinator
     @AppStorage("currencyCode") private var currencyCode = "USD"
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Live status indicator
+                pollingStatusRow
+
                 // Error state
                 if let error = viewModel.claudeError {
                     errorBanner(error)
@@ -48,6 +52,22 @@ struct ClaudeUsageView: View {
         }
         .onAppear {
             refreshAll()
+            polling.startPolling { await pollingRefresh() }
+        }
+        .onDisappear {
+            polling.stopPolling()
+        }
+    }
+
+    private var pollingStatusRow: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(polling.isLive ? Color.green : Color.secondary)
+                .frame(width: 6, height: 6)
+            Text(polling.statusLabel)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Spacer()
         }
     }
 
@@ -56,6 +76,14 @@ struct ClaudeUsageView: View {
         Task {
             await viewModel.loadClaudeAPIData()
         }
+    }
+
+    /// Called by the polling coordinator on each tick.
+    /// Returns true on success, false on error.
+    private func pollingRefresh() async -> Bool {
+        viewModel.loadClaudeData()
+        await viewModel.loadClaudeAPIData()
+        return viewModel.claudeError == nil && viewModel.claudeAPIStatusMessage == nil
     }
 
     // MARK: - Utilization
