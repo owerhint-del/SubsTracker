@@ -8,8 +8,16 @@ final class GmailScannerService {
     var progress = ScanProgress()
 
     private let gmail = GmailOAuthService.shared
-    private let maxMessages = 200
     private let maxBodyFetches = 15
+
+    // Configurable scan parameters (read from UserDefaults at scan time)
+    private var maxMessages: Int { UserDefaults.standard.integer(forKey: "maxScannedMessages").clamped(to: 100...2000, fallback: ScanConfig.defaultMaxMessages) }
+    private var lookbackMonths: Int { UserDefaults.standard.integer(forKey: "lookbackMonths").clamped(to: 1...36, fallback: ScanConfig.defaultLookbackMonths) }
+    private var includeSpamTrash: Bool {
+        UserDefaults.standard.object(forKey: "includeSpamAndTrash") != nil
+            ? UserDefaults.standard.bool(forKey: "includeSpamAndTrash")
+            : ScanConfig.defaultIncludeSpamTrash
+    }
 
     private init() {}
 
@@ -121,17 +129,15 @@ final class GmailScannerService {
     // MARK: - Phase 1: Search Gmail
 
     private func searchBillingEmails() async throws -> [String] {
-        let queries = [
-            "subject:(invoice OR receipt OR \"billing statement\" OR \"your payment\") newer_than:6m",
-            "subject:(subscription OR membership OR renewal OR \"your plan\") newer_than:6m",
-            "subject:(charged OR \"amount due\" OR \"payment confirmation\" OR \"payment received\") newer_than:6m"
-        ]
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: lookbackMonths)
+        NSLog("[Scanner] Using %d queries, lookback: %dm, maxMessages: %d, includeSpamTrash: %@",
+              queries.count, lookbackMonths, maxMessages, includeSpamTrash ? "YES" : "NO")
 
         var allMessageIds = Set<String>()
 
         for query in queries {
             do {
-                let ids = try await searchMessages(query: query)
+                let ids = try await searchMessages(query: query, includeSpamTrash: includeSpamTrash)
                 NSLog("[Scanner] Query returned %d messages: %@", ids.count, String(query.prefix(60)))
                 allMessageIds.formUnion(ids)
             } catch {
@@ -148,7 +154,7 @@ final class GmailScannerService {
         return Array(allMessageIds.prefix(maxMessages))
     }
 
-    private func searchMessages(query: String) async throws -> [String] {
+    private func searchMessages(query: String, includeSpamTrash: Bool = false) async throws -> [String] {
         var allIds: [String] = []
         var pageToken: String?
 
@@ -157,6 +163,9 @@ final class GmailScannerService {
                 URLQueryItem(name: "q", value: query),
                 URLQueryItem(name: "maxResults", value: "100")
             ]
+            if includeSpamTrash {
+                queryItems.append(URLQueryItem(name: "includeSpamTrash", value: "true"))
+            }
             if let token = pageToken {
                 queryItems.append(URLQueryItem(name: "pageToken", value: token))
             }
@@ -371,7 +380,7 @@ final class GmailScannerService {
     private func fetchLatestMessageBody(for sender: SenderSummary) async throws -> String? {
         // Use queryDomain — for processor splits this is the actual domain (e.g. stripe.com),
         // not the extracted service name
-        let query = "from:\(sender.queryDomain) newer_than:6m"
+        let query = "from:\(sender.queryDomain) newer_than:\(lookbackMonths)m"
         let queryItems = [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "maxResults", value: "1")
@@ -480,16 +489,30 @@ final class GmailScannerService {
         #endif
 
         let systemPrompt = """
-        You are a subscription detection assistant. You receive a summary of services that sent billing-related emails.
+        You are a subscription and billing detection assistant. You receive a summary of services that sent billing-related emails.
 
-        For each, determine if this is an active PAID subscription and fill in the details.
+        For each, classify the charge type and fill in the details.
 
         Respond with ONLY valid JSON:
-        {"subscriptions": [{"service_name": "...", "cost": 15.99, "billing_cycle": "monthly", "category": "AI Services", "renewal_date": "2026-03-15", "confidence": 0.95, "cost_source": "subject", "is_estimated": false, "evidence": "found $15.99 in subject", "notes": "..."}]}
+        {"subscriptions": [{"service_name": "...", "cost": 15.99, "billing_cycle": "monthly", "category": "AI Services", "charge_type": "recurring_subscription", "renewal_date": "2026-03-15", "confidence": 0.95, "cost_source": "subject", "is_estimated": false, "evidence": "found $15.99 in subject", "notes": "..."}]}
 
         RULES:
 
         SERVICE NAME: Use the short brand name people use. "Vercel" not "Vercel Inc.", "Cursor" not "Cursor AI Editor". "Anthropic" not "Anthropic, PBC".
+
+        CHARGE TYPE (REQUIRED — one of):
+        - "recurring_subscription": Regular recurring charge (monthly/annual subscription). Examples: Netflix, Spotify, GitHub Pro, ChatGPT Plus.
+        - "usage_topup": Variable/usage-based charge, API credits, token top-ups. Examples: OpenAI API credits, AWS usage, Twilio balance.
+        - "addon_credits": One-time add-on or credit pack purchase. Examples: extra storage, one-time license, lifetime deal.
+        - "one_time_purchase": Single purchase not expected to repeat. Examples: domain registration, hardware, one-off service.
+        - "refund_or_reversal": Money returned — refund, chargeback, reversal. ALWAYS include these so we can filter them.
+        - "unknown": Cannot determine charge type from available evidence.
+
+        CLASSIFICATION SIGNALS:
+        - Recurring: keywords like "subscription", "renewal", "monthly", "annual", "auto-pay", "membership", regular cadence.
+        - Usage top-up: keywords like "top up", "credits", "tokens", "usage", "API", "pay-as-you-go", "prepaid", irregular amounts.
+        - Refund: keywords like "refund", "reversal", "chargeback", "credit applied", "money back".
+        - If a service sends BOTH subscription AND top-up emails, classify based on the DOMINANT pattern.
 
         COST AND BILLING CYCLE:
         - If an exact amount is provided in "amounts", use it and set cost_source to where it was found (subject/snippet/body).
@@ -502,15 +525,13 @@ final class GmailScannerService {
         COST SOURCE FIELDS (REQUIRED):
         - cost_source: one of "subject", "snippet", "body", "estimated" — where the cost came from.
         - is_estimated: true if cost was guessed/estimated, false if extracted from actual email data.
-        - evidence: short string explaining why this is a subscription and where cost came from.
-          Examples: "found $19.99 in subject", "receipt email with $200 in snippet", "estimated from standard Vercel Pro pricing"
+        - evidence: short string explaining why this charge was detected and where cost came from.
 
-        FILTERING — BE CONSERVATIVE:
-        - Include ONLY services where you have STRONG evidence of a paid recurring subscription.
-        - Strong evidence = receipt/invoice/payment email with an amount, OR multiple billing-related emails from the same sender.
-        - SKIP: marketing emails, newsletters, free-tier notifications, one-time purchases, shipping notifications.
+        FILTERING:
+        - Include ALL paid charges you can identify: subscriptions, top-ups, one-time purchases, AND refunds.
+        - SKIP: marketing emails, newsletters, free-tier notifications, shipping notifications, password resets.
         - SKIP services already tracked: [\(existingList)]
-        - If evidence is weak (e.g. single email, no amount, low billing_score), either skip it or include with low confidence (0.4-0.5).
+        - If evidence is weak (e.g. single email, no amount, low billing_score), include with low confidence (0.4-0.5).
         - Do NOT force-include services just because they sent a receipt-like email. Use the billing_score as a signal.
 
         OTHER FIELDS:
@@ -521,8 +542,8 @@ final class GmailScannerService {
           Low (0.5-0.69): estimated cost or weak evidence.
           Very Low (<0.5): skip instead of including.
         - renewal_date: YYYY-MM-DD. Calculate from latest email date + billing cycle period.
-        - notes: brief context about the subscription
-        - If no paid subscriptions found, return {"subscriptions": []}
+        - notes: brief context about the charge
+        - If no paid charges found, return {"subscriptions": []}
         """
 
         let url = URL(string: "https://api.openai.com/v1/chat/completions")!
@@ -538,7 +559,7 @@ final class GmailScannerService {
             "response_format": ["type": "json_object"],
             "messages": [
                 ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": "Here is a summary of services that sent billing-related emails in the past 6 months. Determine which are active paid subscriptions:\n\n\(summary)"]
+                ["role": "user", "content": "Here is a summary of services that sent billing-related emails in the past \(lookbackMonths) months. Classify each charge:\n\n\(summary)"]
             ]
         ]
 
@@ -560,11 +581,11 @@ final class GmailScannerService {
         }
         #endif
 
-        return parseOpenAIResponse(data)
+        return parseOpenAIResponse(data, senders: senders)
     }
 
-    /// Parses the OpenAI response JSON into SubscriptionCandidate array.
-    private func parseOpenAIResponse(_ data: Data) -> [SubscriptionCandidate] {
+    /// Parses the OpenAI response JSON into SubscriptionCandidate array with local charge type validation.
+    private func parseOpenAIResponse(_ data: Data, senders: [SenderSummary]) -> [SubscriptionCandidate] {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let choices = json["choices"] as? [[String: Any]],
               let message = choices.first?["message"] as? [String: Any],
@@ -575,25 +596,53 @@ final class GmailScannerService {
             return []
         }
 
-        return GmailSignalEngine.parseCandidatesFromJSON(subscriptions)
+        var candidates = GmailSignalEngine.parseCandidatesFromJSON(subscriptions)
+
+        // Post-AI validation: cross-check charge types with local keyword signals
+        for i in candidates.indices {
+            let candidate = candidates[i]
+            // Find matching sender for subject/snippet context
+            let matchingSender = senders.first { sender in
+                GmailSignalEngine.namesMatch(sender.senderName, candidate.name)
+            }
+
+            if let sender = matchingSender {
+                let validated = GmailSignalEngine.validateChargeType(
+                    aiType: candidate.chargeType,
+                    subject: sender.latestSubject,
+                    snippet: sender.latestSnippet,
+                    bodyText: sender.bodyText
+                )
+                candidates[i].chargeType = validated.type
+                // Adjust confidence if validation disagrees
+                if validated.confidence < candidates[i].confidence {
+                    candidates[i].confidence = (candidates[i].confidence + validated.confidence) / 2
+                }
+            }
+        }
+
+        return candidates
     }
 
     // MARK: - Phase 5: Deduplication (Normalized Names)
 
     private func deduplicateCandidates(_ candidates: [SubscriptionCandidate], existingNames: [String] = []) -> [SubscriptionCandidate] {
-        // First: filter out candidates that match existing subscriptions
+        // First: filter out candidates that match existing subscriptions (recurring only)
         let normalizedExisting = existingNames.map { GmailSignalEngine.normalizeName($0) }
         let filtered = candidates.filter { candidate in
+            // Only filter recurring against existing — non-recurring are always new
+            guard candidate.chargeType.isRecurring || candidate.chargeType == .unknown else { return true }
             let normalizedCandidate = GmailSignalEngine.normalizeName(candidate.name)
             return !normalizedExisting.contains { existing in
                 GmailSignalEngine.namesMatch(normalizedCandidate, existing)
             }
         }
 
-        // Then: group by normalized name
+        // Then: group by (normalized name + charge type) for smarter dedup
+        // This allows "OpenAI subscription" and "OpenAI API top-up" to coexist
         var grouped: [String: [SubscriptionCandidate]] = [:]
         for candidate in filtered {
-            let key = GmailSignalEngine.normalizeName(candidate.name)
+            let key = "\(GmailSignalEngine.normalizeName(candidate.name))|\(candidate.chargeType.rawValue)"
             grouped[key, default: []].append(candidate)
         }
 
@@ -646,5 +695,14 @@ final class GmailScannerService {
             }
         }
         return Self.isoFormatter.date(from: cleaned)
+    }
+}
+
+// MARK: - Int Clamping Helper
+
+private extension Int {
+    func clamped(to range: ClosedRange<Int>, fallback: Int) -> Int {
+        if self == 0 { return fallback }
+        return Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }

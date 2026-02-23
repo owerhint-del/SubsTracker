@@ -47,6 +47,56 @@ enum CostSource: String {
     case estimated
 }
 
+// MARK: - Charge Type
+
+enum ChargeType: String, CaseIterable {
+    case recurringSubscription = "recurring_subscription"
+    case usageTopup = "usage_topup"
+    case addonCredits = "addon_credits"
+    case oneTimePurchase = "one_time_purchase"
+    case refundOrReversal = "refund_or_reversal"
+    case unknown
+
+    var displayName: String {
+        switch self {
+        case .recurringSubscription: return "Subscription"
+        case .usageTopup: return "API Top-up"
+        case .addonCredits: return "Credits/Add-on"
+        case .oneTimePurchase: return "One-time"
+        case .refundOrReversal: return "Refund"
+        case .unknown: return "Unknown"
+        }
+    }
+
+    var isRecurring: Bool { self == .recurringSubscription }
+
+    var isNonRecurring: Bool {
+        switch self {
+        case .usageTopup, .addonCredits, .oneTimePurchase: return true
+        default: return false
+        }
+    }
+
+    var iconSystemName: String {
+        switch self {
+        case .recurringSubscription: return "arrow.triangle.2.circlepath"
+        case .usageTopup: return "gauge.with.dots.needle.33percent"
+        case .addonCredits: return "creditcard"
+        case .oneTimePurchase: return "bag"
+        case .refundOrReversal: return "arrow.uturn.backward"
+        case .unknown: return "questionmark.circle"
+        }
+    }
+}
+
+// MARK: - Scan Configuration Defaults
+
+enum ScanConfig {
+    static let defaultMaxMessages = 500
+    static let defaultLookbackMonths = 12
+    static let defaultIncludeSpamTrash = true
+}
+
 // MARK: - Sender Summary (aggregated from multiple emails)
 
 struct SenderSummary {
@@ -78,6 +128,7 @@ struct SubscriptionCandidate: Identifiable {
     var costSource: CostSource = .estimated
     var isEstimated: Bool = true
     var evidence: String?
+    var chargeType: ChargeType = .unknown
 
     var confidenceLabel: String {
         if confidence >= 0.9 { return "High" }

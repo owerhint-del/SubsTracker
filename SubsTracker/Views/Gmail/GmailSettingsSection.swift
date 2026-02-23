@@ -11,6 +11,10 @@ struct GmailSettingsSection: View {
     @State private var clientSecret = ""
     @State private var credentialsSaveMessage: String?
 
+    @AppStorage("includeSpamAndTrash") private var includeSpamAndTrash = ScanConfig.defaultIncludeSpamTrash
+    @AppStorage("lookbackMonths") private var lookbackMonths = ScanConfig.defaultLookbackMonths
+    @AppStorage("maxScannedMessages") private var maxScannedMessages = ScanConfig.defaultMaxMessages
+
     var body: some View {
         // Google API Credentials
         VStack(alignment: .leading, spacing: 8) {
@@ -144,7 +148,7 @@ struct GmailSettingsSection: View {
             if let error = scanVM.errorMessage {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(error.contains("No subscriptions") ? Color.secondary : Color.red)
+                    .foregroundStyle(error.contains("No charges") ? Color.secondary : Color.red)
             }
 
             if let lastDate = scanVM.lastScanDateFormatted {
@@ -159,6 +163,46 @@ struct GmailSettingsSection: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // Scan Settings
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Scan Settings")
+                .font(.callout)
+                .fontWeight(.medium)
+
+            Toggle("Include Spam & Trash", isOn: $includeSpamAndTrash)
+                .controlSize(.small)
+
+            HStack {
+                Text("Lookback Period")
+                Spacer()
+                Picker("", selection: $lookbackMonths) {
+                    Text("3 months").tag(3)
+                    Text("6 months").tag(6)
+                    Text("12 months").tag(12)
+                    Text("24 months").tag(24)
+                }
+                .labelsHidden()
+                .frame(width: 120)
+            }
+
+            HStack {
+                Text("Max Messages")
+                Spacer()
+                Picker("", selection: $maxScannedMessages) {
+                    Text("200").tag(200)
+                    Text("500").tag(500)
+                    Text("800").tag(800)
+                    Text("1000").tag(1000)
+                }
+                .labelsHidden()
+                .frame(width: 120)
+            }
+
+            Text("More messages and longer lookback improve detection but take longer to scan")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
         .sheet(isPresented: $scanVM.showingReview) {
             GmailScanReviewView(
                 scanVM: $scanVM,

@@ -63,11 +63,14 @@ final class GmailScanViewModel {
             let results = try await scanner.scanForSubscriptions(existingNames: existingNames)
             isScanning = false
             lastScanDate = Date()
-            NSLog("[AutoScan] Scan complete — found \(results.count) subscriptions")
 
-            if !results.isEmpty {
-                addOrUpdateSubscriptions(results, context: context)
-                NSLog("[AutoScan] Subscriptions added/updated")
+            // Auto-scan: only process recurring subscriptions (user-chosen policy)
+            let recurringOnly = results.filter { $0.chargeType.isRecurring || $0.chargeType == .unknown }
+            NSLog("[AutoScan] Scan complete — found \(results.count) total, \(recurringOnly.count) recurring")
+
+            if !recurringOnly.isEmpty {
+                addOrUpdateSubscriptions(recurringOnly, context: context)
+                NSLog("[AutoScan] Recurring subscriptions added/updated")
             }
         } catch {
             isScanning = false
@@ -132,8 +135,14 @@ final class GmailScanViewModel {
             lastScanDate = Date()
 
             if results.isEmpty {
-                errorMessage = "No subscriptions found in your emails"
+                errorMessage = "No charges found in your emails"
             } else {
+                // Auto-deselect refunds (shown for info but not saved by default)
+                for i in candidates.indices {
+                    if candidates[i].chargeType == .refundOrReversal {
+                        candidates[i].isSelected = false
+                    }
+                }
                 showingReview = true
             }
         } catch let error as GmailOAuthError {
@@ -160,6 +169,20 @@ final class GmailScanViewModel {
         scanner.progress
     }
 
+    // MARK: - Filtered Views by Charge Type
+
+    var recurringCandidates: [SubscriptionCandidate] {
+        candidates.filter { $0.chargeType.isRecurring || $0.chargeType == .unknown }
+    }
+
+    var nonRecurringCandidates: [SubscriptionCandidate] {
+        candidates.filter { $0.chargeType.isNonRecurring }
+    }
+
+    var refundCandidates: [SubscriptionCandidate] {
+        candidates.filter { $0.chargeType == .refundOrReversal }
+    }
+
     // MARK: - Selection
 
     func toggleSelection(at index: Int) {
@@ -169,7 +192,10 @@ final class GmailScanViewModel {
 
     func selectAll() {
         for i in candidates.indices {
-            candidates[i].isSelected = true
+            // Don't select refunds
+            if candidates[i].chargeType != .refundOrReversal {
+                candidates[i].isSelected = true
+            }
         }
     }
 
@@ -183,23 +209,39 @@ final class GmailScanViewModel {
         candidates.filter(\.isSelected).count
     }
 
-    // MARK: - Add to SwiftData
+    // MARK: - Add to SwiftData (split by charge type)
 
     func addSelectedSubscriptions(viewModel: SubscriptionViewModel, context: ModelContext) {
         let selected = candidates.filter(\.isSelected)
 
         for candidate in selected {
-            viewModel.addSubscription(
-                name: candidate.name,
-                provider: .manual,
-                cost: candidate.cost,
-                billingCycle: candidate.billingCycle,
-                renewalDate: candidate.renewalDate ?? Date(),
-                category: candidate.category,
-                notes: candidate.notes,
-                context: context
-            )
+            if candidate.chargeType.isRecurring || candidate.chargeType == .unknown {
+                // Recurring → Subscription model
+                viewModel.addSubscription(
+                    name: candidate.name,
+                    provider: .manual,
+                    cost: candidate.cost,
+                    billingCycle: candidate.billingCycle,
+                    renewalDate: candidate.renewalDate ?? Date(),
+                    category: candidate.category,
+                    notes: candidate.notes,
+                    context: context
+                )
+            } else if candidate.chargeType.isNonRecurring {
+                // Non-recurring → OneTimePurchase model
+                let purchase = OneTimePurchase(
+                    name: candidate.name,
+                    amount: candidate.cost,
+                    date: candidate.renewalDate ?? Date(),
+                    category: candidate.category,
+                    notes: candidate.notes
+                )
+                context.insert(purchase)
+            }
+            // Refunds are skipped (not saved)
         }
+
+        try? context.save()
 
         // Close review after adding
         showingReview = false

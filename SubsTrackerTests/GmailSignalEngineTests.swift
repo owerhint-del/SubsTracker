@@ -455,3 +455,432 @@ final class QueryDomainTests: XCTestCase {
                        "Non-processor group should have matching queryDomain and senderDomain")
     }
 }
+
+// MARK: - Charge Type Classification Tests
+
+final class ChargeTypeClassifierTests: XCTestCase {
+
+    // --- Recurring Subscription Signals ---
+
+    func testClassify_SubscriptionKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Your subscription has been renewed",
+            snippet: "Thanks for your payment"
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+        XCTAssertGreaterThanOrEqual(result.confidence, 0.7)
+    }
+
+    func testClassify_RenewalKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Renewal confirmation for Netflix",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+    }
+
+    func testClassify_MonthlyChargeKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Monthly charge for Spotify Premium",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+        XCTAssertGreaterThanOrEqual(result.confidence, 0.8)
+    }
+
+    func testClassify_AnnualChargeKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Annual charge: GitHub Pro",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+    }
+
+    func testClassify_AutopayKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Auto-pay successful",
+            snippet: "Your autopay for $9.99 was processed"
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+    }
+
+    func testClassify_MembershipKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Your membership renewal",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+    }
+
+    func testClassify_BillingPeriodKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Billing period: Jan 2026",
+            snippet: "Next billing date: Feb 1"
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+    }
+
+    func testClassify_MonthlyPlanKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Your monthly plan was renewed",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+    }
+
+    // --- Usage Top-up Signals ---
+
+    func testClassify_TopUpKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Top up successful: $50 added",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .usageTopup)
+        XCTAssertGreaterThanOrEqual(result.confidence, 0.8)
+    }
+
+    func testClassify_CreditsKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Credits purchased",
+            snippet: "50 credits added to your account"
+        )
+        XCTAssertEqual(result.type, .usageTopup)
+    }
+
+    func testClassify_TokensKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Tokens added to your account",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .usageTopup)
+    }
+
+    func testClassify_APIUsageKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "API usage charge for February",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .usageTopup)
+    }
+
+    func testClassify_PayAsYouGoKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Pay-as-you-go billing statement",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .usageTopup)
+    }
+
+    func testClassify_PrepaidKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Prepaid balance added",
+            snippet: "$100 prepaid credit"
+        )
+        XCTAssertEqual(result.type, .usageTopup)
+    }
+
+    // --- Add-on / One-time Signals ---
+
+    func testClassify_AddonKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Add-on purchased: Extra Storage",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .addonCredits)
+    }
+
+    func testClassify_OneTimeKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "One-time purchase confirmed",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .addonCredits)
+    }
+
+    func testClassify_LifetimeKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Lifetime access granted",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .addonCredits)
+    }
+
+    // --- Refund Signals ---
+
+    func testClassify_RefundKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Refund processed for $19.99",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .refundOrReversal)
+        XCTAssertGreaterThanOrEqual(result.confidence, 0.8)
+    }
+
+    func testClassify_ChargebackKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Chargeback notification",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .refundOrReversal)
+    }
+
+    func testClassify_ReversalKeyword() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Payment reversal completed",
+            snippet: ""
+        )
+        XCTAssertEqual(result.type, .refundOrReversal)
+    }
+
+    func testClassify_RefundOverridesRecurring() {
+        // Refund should win even if subscription keyword also present
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Subscription refund processed",
+            snippet: "Your subscription refund of $9.99 has been applied"
+        )
+        XCTAssertEqual(result.type, .refundOrReversal, "Refund should override recurring signals")
+    }
+
+    // --- Anti-signals ---
+
+    func testClassify_MarketingAntiSignal() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Free trial welcome promotion",
+            snippet: "Start your trial today with this special promo"
+        )
+        XCTAssertEqual(result.type, .unknown, "Marketing anti-signals should prevent classification")
+    }
+
+    func testClassify_ShippingAntiSignal() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Order shipped — tracking info inside",
+            snippet: "Your delivery is on the way"
+        )
+        XCTAssertEqual(result.type, .unknown, "Shipping anti-signals should prevent classification")
+    }
+
+    // --- Unknown / No Signal ---
+
+    func testClassify_NoSignals() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Hello from the team",
+            snippet: "Just wanted to say hi"
+        )
+        XCTAssertEqual(result.type, .unknown)
+        XCTAssertEqual(result.confidence, 0)
+    }
+
+    func testClassify_WeakSignalBelowThreshold() {
+        let result = GmailSignalEngine.classifyChargeType(
+            subject: "Account balance update",
+            snippet: ""
+        )
+        // "balance" has 0.5 weight — below threshold of 0.4 should still classify
+        // but very weak signals should be uncertain
+        XCTAssertTrue(result.confidence <= 0.6 || result.type == .unknown)
+    }
+
+    // --- Validation ---
+
+    func testValidate_AIAndLocalAgree() {
+        let result = GmailSignalEngine.validateChargeType(
+            aiType: .recurringSubscription,
+            subject: "Your subscription renewal",
+            snippet: "Monthly charge processed"
+        )
+        XCTAssertEqual(result.type, .recurringSubscription)
+        XCTAssertGreaterThanOrEqual(result.confidence, 0.8, "Agreement should boost confidence")
+    }
+
+    func testValidate_AIAndLocalDisagree() {
+        let result = GmailSignalEngine.validateChargeType(
+            aiType: .recurringSubscription,
+            subject: "Top up credits added",
+            snippet: "API usage prepaid balance"
+        )
+        // AI says recurring, local says top-up — trust AI but lower confidence
+        XCTAssertEqual(result.type, .recurringSubscription)
+        XCTAssertEqual(result.confidence, 0.5, "Disagreement should lower confidence")
+    }
+
+    func testValidate_LocalRefundOverridesAI() {
+        let result = GmailSignalEngine.validateChargeType(
+            aiType: .recurringSubscription,
+            subject: "Refund for your subscription",
+            snippet: "Refund of $19.99 has been processed"
+        )
+        XCTAssertEqual(result.type, .refundOrReversal, "Local refund detection should override AI")
+    }
+
+    func testValidate_LocalUnknown_TrustsAI() {
+        let result = GmailSignalEngine.validateChargeType(
+            aiType: .usageTopup,
+            subject: "Payment received",
+            snippet: "Thank you"
+        )
+        XCTAssertEqual(result.type, .usageTopup, "When local has no opinion, trust AI")
+        XCTAssertEqual(result.confidence, 0.7)
+    }
+}
+
+// MARK: - Charge Type Enum Tests
+
+final class ChargeTypeEnumTests: XCTestCase {
+
+    func testIsRecurring() {
+        XCTAssertTrue(ChargeType.recurringSubscription.isRecurring)
+        XCTAssertFalse(ChargeType.usageTopup.isRecurring)
+        XCTAssertFalse(ChargeType.unknown.isRecurring)
+    }
+
+    func testIsNonRecurring() {
+        XCTAssertTrue(ChargeType.usageTopup.isNonRecurring)
+        XCTAssertTrue(ChargeType.addonCredits.isNonRecurring)
+        XCTAssertTrue(ChargeType.oneTimePurchase.isNonRecurring)
+        XCTAssertFalse(ChargeType.recurringSubscription.isNonRecurring)
+        XCTAssertFalse(ChargeType.refundOrReversal.isNonRecurring)
+        XCTAssertFalse(ChargeType.unknown.isNonRecurring)
+    }
+
+    func testDisplayName() {
+        XCTAssertEqual(ChargeType.recurringSubscription.displayName, "Subscription")
+        XCTAssertEqual(ChargeType.usageTopup.displayName, "API Top-up")
+        XCTAssertEqual(ChargeType.refundOrReversal.displayName, "Refund")
+    }
+
+    func testRawValueRoundtrip() {
+        for type in ChargeType.allCases {
+            XCTAssertEqual(ChargeType(rawValue: type.rawValue), type)
+        }
+    }
+}
+
+// MARK: - Query Builder Tests
+
+final class QueryBuilderTests: XCTestCase {
+
+    func testBuildQueries_ContainsTimeFilter() {
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: 12)
+        for query in queries {
+            XCTAssertTrue(query.contains("newer_than:12m"), "Query should contain time filter: \(query)")
+        }
+    }
+
+    func testBuildQueries_DifferentLookback() {
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: 6)
+        for query in queries {
+            XCTAssertTrue(query.contains("newer_than:6m"), "Query should use 6m lookback: \(query)")
+        }
+    }
+
+    func testBuildQueries_CoversBillingKeywords() {
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: 12)
+        let combined = queries.joined(separator: " ")
+        XCTAssertTrue(combined.contains("receipt"), "Should search for receipts")
+        XCTAssertTrue(combined.contains("invoice"), "Should search for invoices")
+        XCTAssertTrue(combined.contains("subscription"), "Should search for subscriptions")
+        XCTAssertTrue(combined.contains("renewal"), "Should search for renewals")
+    }
+
+    func testBuildQueries_CoversTopUpKeywords() {
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: 12)
+        let combined = queries.joined(separator: " ")
+        XCTAssertTrue(combined.contains("top up"), "Should search for top-ups")
+        XCTAssertTrue(combined.contains("credits"), "Should search for credits")
+    }
+
+    func testBuildQueries_CoversRefundKeywords() {
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: 12)
+        let combined = queries.joined(separator: " ")
+        XCTAssertTrue(combined.contains("refund"), "Should search for refunds")
+    }
+
+    func testBuildQueries_ReturnsMultipleQueries() {
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: 12)
+        XCTAssertGreaterThanOrEqual(queries.count, 3, "Should generate multiple queries for coverage")
+    }
+}
+
+// MARK: - AI Response Parsing with ChargeType Tests
+
+final class AIResponseChargeTypeParsingTests: XCTestCase {
+
+    func testParse_RecurringSubscription() {
+        let json: [[String: Any]] = [[
+            "service_name": "Netflix",
+            "cost": 15.99,
+            "billing_cycle": "monthly",
+            "category": "Streaming",
+            "charge_type": "recurring_subscription",
+            "confidence": 0.95,
+            "cost_source": "subject",
+            "is_estimated": false,
+            "evidence": "found $15.99 in subject"
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates.count, 1)
+        XCTAssertEqual(candidates[0].chargeType, .recurringSubscription)
+    }
+
+    func testParse_UsageTopup() {
+        let json: [[String: Any]] = [[
+            "service_name": "OpenAI",
+            "cost": 50.0,
+            "billing_cycle": "monthly",
+            "category": "AI Services",
+            "charge_type": "usage_topup",
+            "confidence": 0.8,
+            "cost_source": "snippet",
+            "is_estimated": false,
+            "evidence": "found $50 in snippet"
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates[0].chargeType, .usageTopup)
+    }
+
+    func testParse_Refund() {
+        let json: [[String: Any]] = [[
+            "service_name": "Spotify",
+            "cost": 9.99,
+            "billing_cycle": "monthly",
+            "category": "Streaming",
+            "charge_type": "refund_or_reversal",
+            "confidence": 0.9,
+            "cost_source": "subject",
+            "is_estimated": false,
+            "evidence": "refund processed"
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates[0].chargeType, .refundOrReversal)
+    }
+
+    func testParse_MissingChargeType_DefaultsToUnknown() {
+        let json: [[String: Any]] = [[
+            "service_name": "SomeService",
+            "cost": 10.0,
+            "billing_cycle": "monthly",
+            "category": "Other",
+            "confidence": 0.7
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates[0].chargeType, .unknown)
+    }
+
+    func testParse_InvalidChargeType_DefaultsToUnknown() {
+        let json: [[String: Any]] = [[
+            "service_name": "SomeService",
+            "cost": 10.0,
+            "billing_cycle": "monthly",
+            "category": "Other",
+            "charge_type": "invalid_type",
+            "confidence": 0.7
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates[0].chargeType, .unknown)
+    }
+}

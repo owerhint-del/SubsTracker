@@ -301,6 +301,134 @@ enum GmailSignalEngine {
         return hasNoAmount && isHighSignal
     }
 
+    // MARK: - Charge Type Classification (Local Fallback / Validation)
+
+    /// Keyword groups for local charge type classification.
+    private static let recurringSignals: [(String, Double)] = [
+        ("subscription", 0.9), ("renewal", 0.9), ("renewed", 0.9),
+        ("recurring", 0.8), ("monthly charge", 0.9), ("annual charge", 0.9),
+        ("auto-pay", 0.8), ("autopay", 0.8), ("membership", 0.7),
+        ("your plan", 0.6), ("billing period", 0.8), ("next billing", 0.8),
+        ("monthly plan", 0.8), ("annual plan", 0.8), ("yearly plan", 0.8),
+        ("direct debit", 0.7)
+    ]
+
+    private static let topUpSignals: [(String, Double)] = [
+        ("top up", 0.9), ("top-up", 0.9), ("topup", 0.9),
+        ("credits", 0.7), ("tokens", 0.7), ("usage", 0.6),
+        ("pay as you go", 0.8), ("pay-as-you-go", 0.8),
+        ("prepaid", 0.7), ("balance", 0.5), ("added funds", 0.8),
+        ("api usage", 0.8), ("metered", 0.7)
+    ]
+
+    private static let addonSignals: [(String, Double)] = [
+        ("add-on", 0.8), ("addon", 0.8), ("add on", 0.8),
+        ("one-time", 0.7), ("one time", 0.7), ("single purchase", 0.8),
+        ("upgrade", 0.6), ("license", 0.6), ("lifetime", 0.8),
+        ("purchased", 0.5)
+    ]
+
+    private static let refundSignals: [(String, Double)] = [
+        ("refund", 0.95), ("refunded", 0.95), ("reversal", 0.9),
+        ("chargeback", 0.9), ("credit applied", 0.8), ("money back", 0.8),
+        ("cancelled charge", 0.85), ("returned", 0.6)
+    ]
+
+    private static let antiSignals: Set<String> = [
+        "marketing", "newsletter", "promo", "promotion",
+        "trial", "free trial", "welcome", "getting started",
+        "verify your email", "confirm your email",
+        "password reset", "security alert", "sign in",
+        "shipping", "delivery", "tracking", "order shipped"
+    ]
+
+    /// Classifies a charge type from email text using keyword signals.
+    /// Returns (.unknown, 0) if no clear signal is found.
+    static func classifyChargeType(subject: String, snippet: String, bodyText: String? = nil) -> (type: ChargeType, confidence: Double) {
+        let combinedText = "\(subject) \(snippet) \(bodyText ?? "")".lowercased()
+
+        // Check anti-signals first — if strong marketing signal, return unknown
+        let antiCount = antiSignals.filter { combinedText.contains($0) }.count
+        if antiCount >= 2 { return (.unknown, 0) }
+
+        // Check refund first — overrides everything
+        let refundScore = maxSignalScore(in: combinedText, signals: refundSignals)
+        if refundScore >= 0.8 { return (.refundOrReversal, refundScore) }
+
+        // Score all categories
+        let recurringScore = maxSignalScore(in: combinedText, signals: recurringSignals)
+        let topUpScore = maxSignalScore(in: combinedText, signals: topUpSignals)
+        let addonScore = maxSignalScore(in: combinedText, signals: addonSignals)
+
+        // Pick the highest-scoring category
+        let scores: [(ChargeType, Double)] = [
+            (.recurringSubscription, recurringScore),
+            (.usageTopup, topUpScore),
+            (.addonCredits, addonScore)
+        ]
+
+        guard let best = scores.max(by: { $0.1 < $1.1 }), best.1 > 0.4 else {
+            return (.unknown, 0)
+        }
+
+        return best
+    }
+
+    /// Returns the maximum signal weight found in the text.
+    private static func maxSignalScore(in text: String, signals: [(String, Double)]) -> Double {
+        var maxScore: Double = 0
+        for (keyword, weight) in signals {
+            if text.contains(keyword) {
+                maxScore = max(maxScore, weight)
+            }
+        }
+        return maxScore
+    }
+
+    /// Validates an AI-assigned charge type against local signals.
+    /// If the AI and local agree, boost confidence. If they disagree, prefer AI but lower confidence.
+    static func validateChargeType(
+        aiType: ChargeType,
+        subject: String,
+        snippet: String,
+        bodyText: String? = nil
+    ) -> (type: ChargeType, confidence: Double) {
+        let local = classifyChargeType(subject: subject, snippet: snippet, bodyText: bodyText)
+
+        // If local has no opinion, trust AI
+        if local.type == .unknown { return (aiType, 0.7) }
+
+        // If they agree, boost confidence
+        if local.type == aiType { return (aiType, min(1.0, local.confidence + 0.1)) }
+
+        // Refund override: local refund detection overrides AI
+        if local.type == .refundOrReversal && local.confidence >= 0.8 {
+            return (.refundOrReversal, local.confidence)
+        }
+
+        // Disagree: trust AI but lower confidence
+        return (aiType, 0.5)
+    }
+
+    // MARK: - Gmail Query Builder
+
+    /// Builds Gmail search queries for subscription/billing email detection.
+    static func buildSearchQueries(lookbackMonths: Int) -> [String] {
+        let timeFilter = "newer_than:\(lookbackMonths)m"
+        return [
+            // Billing and receipts
+            "subject:(receipt OR invoice OR payment OR billing) \(timeFilter)",
+            // Subscriptions and renewals
+            "subject:(subscription OR renewal OR recurring OR membership) \(timeFilter)",
+            // Financial transactions
+            "subject:(charged OR \"amount due\" OR \"auto-pay\" OR \"direct debit\") \(timeFilter)",
+            // API/usage top-ups
+            "subject:(\"top up\" OR credits OR \"usage\" OR tokens OR prepaid) \(timeFilter)",
+            // Refunds (we detect and exclude later)
+            "subject:(refund OR reversal OR chargeback) \(timeFilter)"
+        ]
+    }
+
     // MARK: - AI Response Parsing (Pure Logic)
 
     /// Parses a JSON array of subscription objects from the AI response into SubscriptionCandidate array.
@@ -329,6 +457,10 @@ enum GmailSignalEngine {
             let billingCycle = BillingCycle(rawValue: cycleString) ?? .monthly
             let category = SubscriptionCategory(rawValue: categoryString) ?? .other
 
+            // Parse charge type from AI response
+            let chargeTypeStr = sub["charge_type"] as? String ?? "unknown"
+            let chargeType = ChargeType(rawValue: chargeTypeStr) ?? .unknown
+
             return SubscriptionCandidate(
                 name: name,
                 cost: cost,
@@ -339,7 +471,8 @@ enum GmailSignalEngine {
                 notes: notes,
                 costSource: costSource,
                 isEstimated: isEstimated,
-                evidence: evidence
+                evidence: evidence,
+                chargeType: chargeType
             )
         }
     }
