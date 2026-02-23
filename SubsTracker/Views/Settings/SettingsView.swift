@@ -358,6 +358,10 @@ struct SettingsView: View {
                     Text("macOS")
                         .foregroundStyle(.secondary)
                 }
+
+                Text("Widget disabled in Personal Team mode. Requires paid Apple Developer account.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

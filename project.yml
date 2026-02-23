@@ -16,7 +16,6 @@ schemes:
     build:
       targets:
         SubsTracker: all
-        SubsTrackerWidget: all
         SubsTrackerTests: [test]
     run:
       executable: SubsTracker
@@ -54,9 +53,6 @@ targets:
         excludes:
           - "**/*.entitlements"
       - path: Shared
-    dependencies:
-      - target: SubsTrackerWidget
-        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.owerhintdel.substracker

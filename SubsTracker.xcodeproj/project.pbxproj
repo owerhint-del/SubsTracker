@@ -29,7 +29,6 @@
 		534B6454316B332104962645 /* UsageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4668E14DAEDB5024C93EB3 /* UsageViewModel.swift */; };
 		53ECFA7570052878A0F54021 /* UsageChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E246A94F529EB9B6A017E3D /* UsageChartView.swift */; };
 		57E02817EC0884B879926FF3 /* TopUpRecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43DCAD8B493CA8653ACC3D9 /* TopUpRecommendationEngine.swift */; };
-		5A6969CE7EE12B77A47542BE /* SubsTrackerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5CEAE6B70AD9498CAD505117 /* SubsTrackerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		5ECE3343B256BDAA865B32C0 /* GmailScanReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05571B43FD75A0147A5C1C19 /* GmailScanReviewView.swift */; };
 		5ED5A7A9EEB52409C05AC888 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B810032AFD162213C3010 /* CurrencyFormatter.swift */; };
 		613785BBF9055E538A084725 /* ClaudeCodeLocalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F2E63407813F784022CE601 /* ClaudeCodeLocalService.swift */; };
@@ -81,30 +80,6 @@
 		FB925EE4D086F6D15DFBC267 /* GmailScannerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90FF483C67D7FDBD986A4F2F /* GmailScannerService.swift */; };
 		FC1A194150D32EC38C74063F /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31108CA3ADA7590E9C6688CE /* KeychainService.swift */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		29E9474677D639FB08F8E126 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 47DE83BA614872FDEFBD647B /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 105137F5CED3D4359541B999;
-			remoteInfo = SubsTrackerWidget;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		A465EFFC9DD81ECE99BC8E8A /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				5A6969CE7EE12B77A47542BE /* SubsTrackerWidget.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		02DA1558AC9AC72F22DBEE02 /* GmailScanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailScanViewModel.swift; sourceTree = "<group>"; };
@@ -400,12 +375,10 @@
 			buildPhases = (
 				D348060FB62FFC701D293D04 /* Sources */,
 				40A40FA2E919E06CC945A962 /* Resources */,
-				A465EFFC9DD81ECE99BC8E8A /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				CC7BC3283CCBF235E5BB610E /* PBXTargetDependency */,
 			);
 			name = SubsTracker;
 			packageProductDependencies = (
@@ -576,14 +549,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		CC7BC3283CCBF235E5BB610E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 105137F5CED3D4359541B999 /* SubsTrackerWidget */;
-			targetProxy = 29E9474677D639FB08F8E126 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2DB1DBB2393E3C82AF374E55 /* Release */ = {

@@ -35,20 +35,6 @@
                ReferencedContainer = "container:SubsTracker.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "105137F5CED3D4359541B999"
-               BuildableName = "SubsTrackerWidget.appex"
-               BlueprintName = "SubsTrackerWidget"
-               ReferencedContainer = "container:SubsTracker.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
