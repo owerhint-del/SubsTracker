@@ -124,8 +124,8 @@ final class UsageViewModel {
         isLoadingCodex = false
     }
 
-    /// Lightweight refresh: only fetches data needed for menu bar display.
-    /// Skips heavy local file parsing (Claude daily/model data, full Codex scan).
+    /// Lightweight refresh: only Claude API utilization + Codex rate limits.
+    /// No OpenAI calls — those happen via daily maintenance or manual refresh.
     func loadMenuBarData() async {
         await loadClaudeAPIData()
         do {
@@ -136,9 +136,6 @@ final class UsageViewModel {
             codexRateLimits = limits
         } catch {
             // Non-critical — menu bar will show "—" for Codex
-        }
-        if hasOpenAIKey {
-            await loadOpenAIData()
         }
     }
 

@@ -56,9 +56,40 @@ final class SubscriptionManager: ObservableObject {
         ])
     }
 
-    // MARK: - Refresh All
+    // MARK: - Refresh Tiers
 
-    /// Refresh usage data for all API-connected subscriptions.
+    /// Frequent background refresh: only Claude/Codex data.
+    /// Safe to call every timer tick — no OpenAI, widget, or notification work.
+    func refreshFrequentBackground(context: ModelContext) async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        lastError = nil
+
+        // Apply Claude data path from Settings
+        let savedPath = UserDefaults.standard.string(forKey: "claudeDataPath") ?? "~/.claude"
+        let expandedPath = NSString(string: savedPath).expandingTildeInPath
+        claudeService.updateBasePath(expandedPath)
+
+        await refreshClaudeUsage(context: context)
+
+        trackRefreshResult()
+        isRefreshing = false
+    }
+
+    /// Daily maintenance: OpenAI sync + widget update + notifications.
+    /// Gated to run at most once per 24 hours.
+    func refreshDailyMaintenance(context: ModelContext) async {
+        if openAIService.hasAPIKey {
+            await refreshOpenAIUsage(context: context)
+        }
+        updateWidgetData(context: context)
+        await scheduleNotifications(context: context)
+
+        // Mark daily maintenance as done
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastDailyMaintenanceAt")
+    }
+
+    /// Full refresh: frequent + daily. Used for manual refresh and first launch.
     /// Re-entrant safe: returns immediately if already refreshing.
     func refreshAll(context: ModelContext) async {
         guard !isRefreshing else { return }
@@ -70,21 +101,35 @@ final class SubscriptionManager: ObservableObject {
         let expandedPath = NSString(string: savedPath).expandingTildeInPath
         claudeService.updateBasePath(expandedPath)
 
-        // Refresh Claude data
+        // Frequent: Claude/Codex
         await refreshClaudeUsage(context: context)
 
-        // Refresh OpenAI data if key is available
+        // Daily: OpenAI + widget + notifications (unconditional for manual/full)
         if openAIService.hasAPIKey {
             await refreshOpenAIUsage(context: context)
         }
-
-        // Update widget data after refresh
         updateWidgetData(context: context)
-
-        // Schedule notifications based on current data
         await scheduleNotifications(context: context)
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastDailyMaintenanceAt")
 
-        // Track success/error state
+        trackRefreshResult()
+        isRefreshing = false
+    }
+
+    // MARK: - Daily Gate
+
+    private static let dailyMaintenanceInterval: TimeInterval = 24 * 60 * 60 // 24 hours
+
+    /// Whether daily maintenance is due (>= 24h since last run, or never run).
+    func isDailyMaintenanceDue(now: Date = Date()) -> Bool {
+        let lastTs = UserDefaults.standard.double(forKey: "lastDailyMaintenanceAt")
+        guard lastTs > 0 else { return true } // never run
+        let elapsed = now.timeIntervalSince1970 - lastTs
+        return elapsed >= Self.dailyMaintenanceInterval
+    }
+
+    /// Common success/error tracking after a refresh cycle.
+    private func trackRefreshResult() {
         if lastError != nil {
             consecutiveErrors += 1
             lastErrorAt = Date()
@@ -94,8 +139,6 @@ final class SubscriptionManager: ObservableObject {
             lastRefreshAtDate = Date()
             UserDefaults.standard.set(lastRefreshAtDate!.timeIntervalSince1970, forKey: "lastRefreshAt")
         }
-
-        isRefreshing = false
     }
 
     // MARK: - Auto-Refresh Orchestration
@@ -127,7 +170,7 @@ final class SubscriptionManager: ObservableObject {
         }
         notificationService.pruneOldKeys()
 
-        // Startup refresh decision — uses effective interval, respects policy skip
+        // Startup refresh — frequent always, daily only if due
         var didRefresh = false
         if currentPolicyResult?.shouldSkip != true {
             let decision = RefreshScheduleEngine.shouldRefresh(
@@ -140,7 +183,10 @@ final class SubscriptionManager: ObservableObject {
                 reason: .startup
             )
             if case .refresh = decision {
-                await refreshAll(context: context)
+                await refreshFrequentBackground(context: context)
+                if isDailyMaintenanceDue() {
+                    await refreshDailyMaintenance(context: context)
+                }
                 didRefresh = true
             }
         }
@@ -169,7 +215,7 @@ final class SubscriptionManager: ObservableObject {
             scheduleTimer()
 
             // Check if refresh is due after returning to foreground
-            // Respects energy policy: if shouldSkip, don't auto-refresh
+            // Frequent always, daily only if due
             if wasInactive && currentPolicyResult?.shouldSkip != true {
                 let decision = RefreshScheduleEngine.shouldRefresh(
                     now: Date(),
@@ -181,7 +227,10 @@ final class SubscriptionManager: ObservableObject {
                     reason: .returnedToForeground
                 )
                 if case .refresh = decision {
-                    await refreshAll(context: context)
+                    await refreshFrequentBackground(context: context)
+                    if isDailyMaintenanceDue() {
+                        await refreshDailyMaintenance(context: context)
+                    }
                 }
             }
         } else {
@@ -254,7 +303,10 @@ final class SubscriptionManager: ObservableObject {
                     reason: .interval
                 )
                 if case .refresh = decision {
-                    await self.refreshAll(context: context)
+                    await self.refreshFrequentBackground(context: context)
+                    if self.isDailyMaintenanceDue() {
+                        await self.refreshDailyMaintenance(context: context)
+                    }
                 }
             }
         }
@@ -420,7 +472,10 @@ final class SubscriptionManager: ObservableObject {
                     reason: .interval
                 )
                 if case .refresh = decision {
-                    await self.refreshAll(context: context)
+                    await self.refreshFrequentBackground(context: context)
+                    if self.isDailyMaintenanceDue() {
+                        await self.refreshDailyMaintenance(context: context)
+                    }
                 }
             }
         }
