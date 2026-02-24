@@ -68,10 +68,10 @@ struct OpenAIUsageView: View {
         }
         .onAppear {
             refreshAll()
-            polling.startPolling { await pollingRefresh() }
+            polling.registerConsumer()
         }
         .onDisappear {
-            polling.stopPolling()
+            polling.unregisterConsumer()
         }
     }
 
@@ -94,15 +94,6 @@ struct OpenAIUsageView: View {
         if viewModel.hasOpenAIKey {
             Task { await viewModel.loadOpenAIData() }
         }
-    }
-
-    /// Called by the polling coordinator on each tick.
-    private func pollingRefresh() async -> Bool {
-        await viewModel.loadCodexData()
-        if viewModel.hasOpenAIKey {
-            await viewModel.loadOpenAIData()
-        }
-        return viewModel.codexError == nil && viewModel.openAIError == nil
     }
 
     // MARK: - Codex Utilization

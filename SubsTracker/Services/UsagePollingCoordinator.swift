@@ -2,7 +2,8 @@ import Foundation
 import Combine
 
 /// Coordinates high-frequency polling for usage data (Claude/OpenAI/Codex).
-/// Owns the timer lifecycle, tracks errors, and respects view visibility + scene phase.
+/// Single timer owner — consumers register/unregister interest.
+/// Menu bar counts as an implicit consumer when enabled.
 @MainActor
 @Observable
 final class UsagePollingCoordinator {
@@ -20,9 +21,29 @@ final class UsagePollingCoordinator {
         return UsagePollingEngine.clampInterval(raw)
     }
 
-    // MARK: - Visibility Tracking
+    // MARK: - Consumer Tracking
 
-    private(set) var isViewVisible = false
+    /// Number of view-based consumers (usage views that called registerConsumer)
+    private(set) var viewConsumerCount = 0
+
+    /// Whether the menu bar live label is enabled (read from UserDefaults)
+    var menuBarLiveEnabled: Bool {
+        // UserDefaults.bool returns false for unset keys; default is ON
+        UserDefaults.standard.object(forKey: "menuBarEnabled") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "menuBarEnabled")
+    }
+
+    /// True when any consumer needs live data
+    var hasActiveConsumer: Bool {
+        UsagePollingEngine.hasActiveConsumer(
+            viewConsumerCount: viewConsumerCount,
+            menuBarEnabled: menuBarLiveEnabled
+        )
+    }
+
+    // MARK: - App State
+
     private(set) var isAppActive = true
 
     // MARK: - Timer
@@ -32,25 +53,38 @@ final class UsagePollingCoordinator {
 
     // MARK: - Lifecycle
 
-    /// Start polling. Call from onAppear of a usage view.
-    /// The refreshAction should return `true` on success, `false` on error.
-    func startPolling(action: @escaping () async -> Bool) {
+    /// Set the shared refresh action. Call once at app startup.
+    /// The action should refresh all usage data and return true on success.
+    func setRefreshAction(_ action: @escaping () async -> Bool) {
         refreshAction = action
-        isViewVisible = true
-        scheduleTimer()
+        evaluateTimer()
+        // Immediate first refresh if consumers are waiting
+        if hasActiveConsumer && isAppActive {
+            Task { await refreshNow() }
+        }
     }
 
-    /// Stop polling. Call from onDisappear of a usage view.
-    func stopPolling() {
-        isViewVisible = false
-        cancelTimer()
-        refreshAction = nil
+    /// Register a view-based consumer (call from onAppear of usage views).
+    func registerConsumer() {
+        viewConsumerCount += 1
+        evaluateTimer()
+    }
+
+    /// Unregister a view-based consumer (call from onDisappear of usage views).
+    func unregisterConsumer() {
+        viewConsumerCount = max(0, viewConsumerCount - 1)
+        evaluateTimer()
     }
 
     /// Notify scene phase change. Call from onChange(of: scenePhase).
     func scenePhaseChanged(isActive: Bool) {
         isAppActive = isActive
-        if isActive && isViewVisible {
+        evaluateTimer()
+    }
+
+    /// Re-evaluate timer state (call when settings change).
+    func evaluateTimer() {
+        if hasActiveConsumer && isAppActive && refreshAction != nil && intervalSeconds > 0 {
             scheduleTimer()
         } else {
             cancelTimer()
@@ -75,7 +109,7 @@ final class UsagePollingCoordinator {
     }
 
     var isLive: Bool {
-        intervalSeconds > 0 && isViewVisible && isAppActive
+        intervalSeconds > 0 && hasActiveConsumer && isAppActive
     }
 
     // MARK: - Private
@@ -83,7 +117,7 @@ final class UsagePollingCoordinator {
     private func scheduleTimer() {
         cancelTimer()
         let interval = intervalSeconds
-        guard interval > 0, isViewVisible, isAppActive else { return }
+        guard interval > 0, hasActiveConsumer, isAppActive, refreshAction != nil else { return }
 
         timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(interval), repeats: true) { [weak self] _ in
             guard let self else { return }
@@ -102,7 +136,7 @@ final class UsagePollingCoordinator {
         let decision = UsagePollingEngine.shouldRefresh(
             intervalSeconds: intervalSeconds,
             isRefreshing: isRefreshing,
-            isViewVisible: isViewVisible,
+            isViewVisible: hasActiveConsumer,
             isAppActive: isAppActive,
             consecutiveErrors: consecutiveErrors,
             lastErrorAt: lastErrorAt
@@ -141,13 +175,6 @@ final class UsagePollingCoordinator {
         }
 
         // Re-evaluate timer interval (user might have changed it in Settings)
-        if isViewVisible && isAppActive {
-            let currentInterval = intervalSeconds
-            if currentInterval == 0 {
-                cancelTimer()
-            } else if timer == nil || !timer!.isValid {
-                scheduleTimer()
-            }
-        }
+        evaluateTimer()
     }
 }

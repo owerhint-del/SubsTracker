@@ -52,10 +52,10 @@ struct ClaudeUsageView: View {
         }
         .onAppear {
             refreshAll()
-            polling.startPolling { await pollingRefresh() }
+            polling.registerConsumer()
         }
         .onDisappear {
-            polling.stopPolling()
+            polling.unregisterConsumer()
         }
     }
 
@@ -76,14 +76,6 @@ struct ClaudeUsageView: View {
         Task {
             await viewModel.loadClaudeAPIData()
         }
-    }
-
-    /// Called by the polling coordinator on each tick.
-    /// Returns true on success, false on error.
-    private func pollingRefresh() async -> Bool {
-        viewModel.loadClaudeData()
-        await viewModel.loadClaudeAPIData()
-        return viewModel.claudeError == nil && viewModel.claudeAPIStatusMessage == nil
     }
 
     // MARK: - Utilization

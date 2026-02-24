@@ -39,6 +39,7 @@
 		70B127A2A02F5EDC91F0424D /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF836713C899BECDB1461094 /* WidgetData.swift */; };
 		7365BD15A0233CF414EDAEA8 /* TopUpRecommendationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10872328B921E6DB176743E7 /* TopUpRecommendationEngineTests.swift */; };
 		738E9F2B6F263EEE805913BE /* CodexLocalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 657E213F8205572CB9698552 /* CodexLocalService.swift */; };
+		749C4BBD211B0302C6D0345E /* MenuBarLabelEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B2BC92D2083A87D67DEA3C /* MenuBarLabelEngine.swift */; };
 		7DBFD58696FB6488E30C44A1 /* OpenAIUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CCEE6D100A11E5F433A4D30 /* OpenAIUsageView.swift */; };
 		7E4846CD729120B4F6AF6CEA /* RefreshScheduleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91F0A46F38DCC8DD0BD859D5 /* RefreshScheduleEngine.swift */; };
 		816EA3AA806120B29E81E453 /* UsagePollingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E32E101AE02579A268D2B01B /* UsagePollingCoordinator.swift */; };
@@ -55,8 +56,11 @@
 		9C906CAACF6CA6CD29C8AF0F /* FundingPlannerEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 590C5BDFD1C1B55B7DF3ECA8 /* FundingPlannerEngineTests.swift */; };
 		A03FEE753AA00FCA5A842492 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3B538E45334B823AB53E3A /* Enums.swift */; };
 		A109D91D2142BF00AD67F113 /* GmailScanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02DA1558AC9AC72F22DBEE02 /* GmailScanViewModel.swift */; };
+		A481AD06FBCD6DD4AB577489 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B810032AFD162213C3010 /* CurrencyFormatter.swift */; };
 		A899DC1D9745EEF3014EAF89 /* OneTimePurchaseEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E253713B75A53F06153CB178 /* OneTimePurchaseEngineTests.swift */; };
 		ABBD8F1B156FF403613D881C /* UsagePollingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 085EA37841433F827727241E /* UsagePollingEngine.swift */; };
+		AD8E605F9348F0A8055129C4 /* MenuBarLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3639B1867E9EA555C6C7B8F /* MenuBarLabel.swift */; };
+		AD943748A1CB09D7B95639C4 /* MenuBarLabelEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F2FBF0CD163E123514D8DA2 /* MenuBarLabelEngineTests.swift */; };
 		AEAA8290797F3E78AB1BAAAF /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A8212ADFAC3215C2034562 /* NotificationService.swift */; };
 		AEFB25553C826CEAAA5873E3 /* GmailSignalEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */; };
 		AEFEBC18A806A3341C0A038C /* UsagePollingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D628718E14804899A8DF14A6 /* UsagePollingEngineTests.swift */; };
@@ -68,6 +72,7 @@
 		BCF783D6E502442254CE1B24 /* SubscriptionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15650DDA046EDBB37FC189E4 /* SubscriptionListView.swift */; };
 		C0BE01BEEA89FA02C727B51B /* Subscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC237E606F24637F9A601EE /* Subscription.swift */; };
 		C1F7DCBF4C6A8E78A693AFB0 /* SubscriptionRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1BC882FA3D1C05773EE54C /* SubscriptionRowView.swift */; };
+		C32A61616BDCAD7FB28642BC /* MenuBarLabelEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B2BC92D2083A87D67DEA3C /* MenuBarLabelEngine.swift */; };
 		C8496B14C8427D0A5499DED0 /* RenewalProjectionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73810AE3D0E40798D57F8965 /* RenewalProjectionEngine.swift */; };
 		CA578435421EE44DB986A888 /* NotificationDecisionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */; };
 		CBC654FE6C6A5191D71A3329 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B810032AFD162213C3010 /* CurrencyFormatter.swift */; };
@@ -79,6 +84,7 @@
 		DBDFA22A09F44DA6DC33073C /* AddSubscriptionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE34E42C3005BDA8D004BF6 /* AddSubscriptionView.swift */; };
 		E19E9B720AE99FFCFBBC6361 /* GmailOAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CED70A3E8F7F47053DC1117 /* GmailOAuthService.swift */; };
 		E58E399B56BED8CC4F0D0954 /* SubscriptionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADE7921A1D581761DFA9FBB3 /* SubscriptionDetailView.swift */; };
+		F3315CA77A544A727926A465 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522299F69705CAAEE34BA1EA /* MenuBarView.swift */; };
 		F4660B958CBB4B7070888929 /* WidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 819E455BDF3D854B1151366C /* WidgetViews.swift */; };
 		F56FAF4054CF4CA60ECB6B96 /* SubsTrackerWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F7181217A595C249F5060A1 /* SubsTrackerWidgetBundle.swift */; };
 		FB925EE4D086F6D15DFBC267 /* GmailScannerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90FF483C67D7FDBD986A4F2F /* GmailScannerService.swift */; };
@@ -99,12 +105,15 @@
 		26A4073116F00EE10ED2CD99 /* BackgroundRefreshPolicyEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshPolicyEngine.swift; sourceTree = "<group>"; };
 		2868D79781237129D353FFB5 /* ClaudeUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeUsageView.swift; sourceTree = "<group>"; };
 		29C3CE2626BACA38FBB03607 /* GmailModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModels.swift; sourceTree = "<group>"; };
+		2F2FBF0CD163E123514D8DA2 /* MenuBarLabelEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarLabelEngineTests.swift; sourceTree = "<group>"; };
 		31108CA3ADA7590E9C6688CE /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		33B2BC92D2083A87D67DEA3C /* MenuBarLabelEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarLabelEngine.swift; sourceTree = "<group>"; };
 		350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailSignalEngineTests.swift; sourceTree = "<group>"; };
 		37A7A815CDC3778875CA65B3 /* AppGroupConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupConstants.swift; sourceTree = "<group>"; };
 		3CED70A3E8F7F47053DC1117 /* GmailOAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailOAuthService.swift; sourceTree = "<group>"; };
 		3F8C17D06207EB3BFFE1F796 /* SubsTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SubsTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		50433CBD802FBFA5C61B3EC3 /* RenewalProjectionEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenewalProjectionEngineTests.swift; sourceTree = "<group>"; };
+		522299F69705CAAEE34BA1EA /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		590C5BDFD1C1B55B7DF3ECA8 /* FundingPlannerEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FundingPlannerEngineTests.swift; sourceTree = "<group>"; };
 		5A48B9187892CFE047769A4F /* UsageRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageRecord.swift; sourceTree = "<group>"; };
 		5CEAE6B70AD9498CAD505117 /* SubsTrackerWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SubsTrackerWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -138,6 +147,7 @@
 		C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportEngineTests.swift; sourceTree = "<group>"; };
 		CD4668E14DAEDB5024C93EB3 /* UsageViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageViewModel.swift; sourceTree = "<group>"; };
 		D2A18C3CEA59E3D7F16F3289 /* OneTimePurchase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneTimePurchase.swift; sourceTree = "<group>"; };
+		D3639B1867E9EA555C6C7B8F /* MenuBarLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarLabel.swift; sourceTree = "<group>"; };
 		D3B2537D3EEA1C72F95C43EC /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		D628718E14804899A8DF14A6 /* UsagePollingEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePollingEngineTests.swift; sourceTree = "<group>"; };
 		D94D448CB35A6BB35F9E82F8 /* OneTimePurchaseEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneTimePurchaseEngine.swift; sourceTree = "<group>"; };
@@ -216,6 +226,7 @@
 				C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */,
 				590C5BDFD1C1B55B7DF3ECA8 /* FundingPlannerEngineTests.swift */,
 				350F0B377008722BE4802596 /* GmailSignalEngineTests.swift */,
+				2F2FBF0CD163E123514D8DA2 /* MenuBarLabelEngineTests.swift */,
 				6DE291AAC5E06F17BB6665AF /* NotificationDecisionsTests.swift */,
 				E253713B75A53F06153CB178 /* OneTimePurchaseEngineTests.swift */,
 				02F3A95FCBCE354CFFCA8620 /* RefreshScheduleEngineTests.swift */,
@@ -309,6 +320,7 @@
 				90FF483C67D7FDBD986A4F2F /* GmailScannerService.swift */,
 				6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */,
 				31108CA3ADA7590E9C6688CE /* KeychainService.swift */,
+				33B2BC92D2083A87D67DEA3C /* MenuBarLabelEngine.swift */,
 				11613571515348A97F3AA4DE /* NotificationDecisions.swift */,
 				F0A8212ADFAC3215C2034562 /* NotificationService.swift */,
 				D94D448CB35A6BB35F9E82F8 /* OneTimePurchaseEngine.swift */,
@@ -329,11 +341,21 @@
 				5F0ABCA3B6B6662E9AFBD070 /* Components */,
 				4E7E3B1A3570A43332C76873 /* Dashboard */,
 				9C5E00ACE25A02CCB6D8AAF5 /* Gmail */,
+				D8A66345A88FF8B1CE3DADA4 /* MenuBar */,
 				2E5DD60C7AABBFAA5877C35A /* Settings */,
 				EAD68F81EE31C56AF947C17E /* Subscriptions */,
 				0AF994F2C8D677ACE1F2A4E8 /* Usage */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		D8A66345A88FF8B1CE3DADA4 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				D3639B1867E9EA555C6C7B8F /* MenuBarLabel.swift */,
+				522299F69705CAAEE34BA1EA /* MenuBarView.swift */,
+			);
+			path = MenuBar;
 			sourceTree = "<group>";
 		};
 		DE3ABC72922CFFAAA4852B20 /* SubsTracker */ = {
@@ -471,6 +493,7 @@
 			files = (
 				4592CCFB586F618F6CD8AE91 /* BackgroundRefreshPolicyEngine.swift in Sources */,
 				640B783A35400AF821C9FFD9 /* BackgroundRefreshPolicyEngineTests.swift in Sources */,
+				A481AD06FBCD6DD4AB577489 /* CurrencyFormatter.swift in Sources */,
 				0F3BD5A6829CB13C62D1A0F0 /* Enums.swift in Sources */,
 				B7E6966F6B746E8ADFDE46D4 /* FinanceExportEngine.swift in Sources */,
 				3BBF5E3CED24D2E43A8DB473 /* FinanceExportEngineTests.swift in Sources */,
@@ -479,6 +502,8 @@
 				D542F53F61A30A57AFDA542D /* GmailModels.swift in Sources */,
 				5171F2AD81AD9F100DB11E21 /* GmailSignalEngine.swift in Sources */,
 				AEFB25553C826CEAAA5873E3 /* GmailSignalEngineTests.swift in Sources */,
+				C32A61616BDCAD7FB28642BC /* MenuBarLabelEngine.swift in Sources */,
+				AD943748A1CB09D7B95639C4 /* MenuBarLabelEngineTests.swift in Sources */,
 				6941C2369B8A6574BE257896 /* NotificationDecisions.swift in Sources */,
 				CA578435421EE44DB986A888 /* NotificationDecisionsTests.swift in Sources */,
 				2384206487498CB677BEB9AF /* OneTimePurchaseEngine.swift in Sources */,
@@ -520,6 +545,9 @@
 				126750A0D1BEC6C998408E19 /* GmailSettingsSection.swift in Sources */,
 				B6AC9DB751591352386E4975 /* GmailSignalEngine.swift in Sources */,
 				FC1A194150D32EC38C74063F /* KeychainService.swift in Sources */,
+				AD8E605F9348F0A8055129C4 /* MenuBarLabel.swift in Sources */,
+				749C4BBD211B0302C6D0345E /* MenuBarLabelEngine.swift in Sources */,
+				F3315CA77A544A727926A465 /* MenuBarView.swift in Sources */,
 				0C40B06FD1860993C330516E /* NotificationDecisions.swift in Sources */,
 				AEAA8290797F3E78AB1BAAAF /* NotificationService.swift in Sources */,
 				071D968D513347BCA156AB3A /* OneTimePurchase.swift in Sources */,

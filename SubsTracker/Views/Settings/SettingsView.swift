@@ -25,6 +25,9 @@ struct SettingsView: View {
     // Usage polling
     @AppStorage("usageRefreshSeconds") private var usageRefreshSeconds = 10
 
+    // Menu bar
+    @AppStorage("menuBarEnabled") private var menuBarEnabled = true
+
     // Notification settings
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("quietHoursEnabled") private var quietHoursEnabled = false
@@ -353,6 +356,21 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+            }
+
+            // Menu Bar
+            Section("Menu Bar") {
+                Toggle("Show live usage in menu bar", isOn: $menuBarEnabled)
+
+                if menuBarEnabled {
+                    Text("Displays Claude utilization and OpenAI cost in the status bar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Menu bar icon only — no live data label")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 

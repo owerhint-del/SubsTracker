@@ -4,6 +4,8 @@ import SwiftData
 @main
 struct SubsTrackerApp: App {
     @State private var subscriptionVM = SubscriptionViewModel()
+    @State private var usageVM = UsageViewModel()
+    @State private var pollingCoordinator = UsagePollingCoordinator()
     @StateObject private var manager = SubscriptionManager.shared
 
     var sharedModelContainer: ModelContainer = {
@@ -34,8 +36,12 @@ struct SubsTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(subscriptionVM: subscriptionVM)
-                .frame(minWidth: 900, minHeight: 600)
+            ContentView(
+                subscriptionVM: subscriptionVM,
+                usageVM: usageVM,
+                pollingCoordinator: pollingCoordinator
+            )
+            .frame(minWidth: 900, minHeight: 600)
         }
         .modelContainer(sharedModelContainer)
         .windowStyle(.titleBar)
@@ -47,8 +53,21 @@ struct SubsTrackerApp: App {
                 .frame(width: 500, height: 750)
         }
         .modelContainer(sharedModelContainer)
+
+        MenuBarExtra {
+            MenuBarView(usageVM: usageVM, coordinator: pollingCoordinator)
+        } label: {
+            MenuBarLabel(usageVM: usageVM)
+        }
+        .menuBarExtraStyle(.window)
         #endif
     }
+}
+
+// MARK: - Navigation Notifications
+
+extension Notification.Name {
+    static let menuBarNavigateToUsage = Notification.Name("menuBarNavigateToUsage")
 }
 
 // MARK: - Main Content View
@@ -57,6 +76,8 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Bindable var subscriptionVM: SubscriptionViewModel
+    @Bindable var usageVM: UsageViewModel
+    var pollingCoordinator: UsagePollingCoordinator
     @StateObject private var manager = SubscriptionManager.shared
     @AppStorage("currencyCode") private var currencyCode = "USD"
 
@@ -69,7 +90,6 @@ struct ContentView: View {
 
     @State private var selectedNavItem: NavigationItem? = .dashboard
     @State private var gmailScanVM = GmailScanViewModel()
-    @State private var pollingCoordinator = UsagePollingCoordinator()
 
     var body: some View {
         NavigationSplitView {
@@ -86,6 +106,16 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.3), value: gmailScanVM.isScanning)
         .onAppear {
             subscriptionVM.loadSubscriptions(context: modelContext)
+            // Set shared refresh action once — refreshes all usage data
+            pollingCoordinator.setRefreshAction { [usageVM] in
+                usageVM.loadClaudeData()
+                await usageVM.loadClaudeAPIData()
+                await usageVM.loadCodexData()
+                if usageVM.hasOpenAIKey {
+                    await usageVM.loadOpenAIData()
+                }
+                return usageVM.claudeError == nil && usageVM.codexError == nil
+            }
             Task {
                 await manager.startAutoRefresh(context: modelContext)
                 await gmailScanVM.autoScanIfNeeded(context: modelContext)
@@ -97,6 +127,9 @@ struct ContentView: View {
                 await manager.handleScenePhaseChange(isActive: newPhase == .active, context: modelContext)
             }
             pollingCoordinator.scenePhaseChanged(isActive: newPhase == .active)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .menuBarNavigateToUsage)) { _ in
+            selectedNavItem = .claudeUsage
         }
     }
 
@@ -154,9 +187,6 @@ struct ContentView: View {
     }
 
     // MARK: - Detail
-
-    // Shared ViewModels so data isn't re-fetched on every sidebar click
-    @State private var usageVM = UsageViewModel()
 
     @ViewBuilder
     private var detailView: some View {

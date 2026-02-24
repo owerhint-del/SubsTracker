@@ -354,3 +354,74 @@ final class PollingEngineConstantsTests: XCTestCase {
         XCTAssertEqual(UsagePollingEngine.backoffDuration, 30)
     }
 }
+
+// MARK: - Consumer Logic Tests
+
+final class PollingConsumerTests: XCTestCase {
+
+    func testNoConsumers_MenuBarDisabled_Inactive() {
+        XCTAssertFalse(UsagePollingEngine.hasActiveConsumer(
+            viewConsumerCount: 0, menuBarEnabled: false
+        ))
+    }
+
+    func testNoConsumers_MenuBarEnabled_Active() {
+        XCTAssertTrue(UsagePollingEngine.hasActiveConsumer(
+            viewConsumerCount: 0, menuBarEnabled: true
+        ))
+    }
+
+    func testOneConsumer_MenuBarDisabled_Active() {
+        XCTAssertTrue(UsagePollingEngine.hasActiveConsumer(
+            viewConsumerCount: 1, menuBarEnabled: false
+        ))
+    }
+
+    func testTwoConsumers_MenuBarEnabled_Active() {
+        XCTAssertTrue(UsagePollingEngine.hasActiveConsumer(
+            viewConsumerCount: 2, menuBarEnabled: true
+        ))
+    }
+
+    func testDisabledMode_NoPolling() {
+        // When menu bar disabled + no view consumers → shouldRefresh returns skipInactive
+        let decision = UsagePollingEngine.shouldRefresh(
+            intervalSeconds: 10,
+            isRefreshing: false,
+            isViewVisible: false,  // hasActiveConsumer = false
+            isAppActive: true,
+            consecutiveErrors: 0,
+            lastErrorAt: nil
+        )
+        XCTAssertEqual(decision, .skipInactive)
+    }
+
+    func testSingleRefreshGuard() {
+        // Even with active consumers, isRefreshing=true prevents double refresh
+        let decision = UsagePollingEngine.shouldRefresh(
+            intervalSeconds: 10,
+            isRefreshing: true,
+            isViewVisible: true,   // hasActiveConsumer = true
+            isAppActive: true,
+            consecutiveErrors: 0,
+            lastErrorAt: nil
+        )
+        XCTAssertEqual(decision, .skipAlreadyRefreshing)
+    }
+
+    func testMenuBarOnlyConsumer_AllowsRefresh() {
+        // Only menu bar enabled, no view consumers — should still allow refresh
+        let hasConsumer = UsagePollingEngine.hasActiveConsumer(
+            viewConsumerCount: 0, menuBarEnabled: true
+        )
+        let decision = UsagePollingEngine.shouldRefresh(
+            intervalSeconds: 10,
+            isRefreshing: false,
+            isViewVisible: hasConsumer,
+            isAppActive: true,
+            consecutiveErrors: 0,
+            lastErrorAt: nil
+        )
+        XCTAssertEqual(decision, .refresh)
+    }
+}

@@ -65,6 +65,14 @@ enum UsagePollingEngine {
         return 10
     }
 
+    // MARK: - Consumer Logic
+
+    /// Whether polling has any active consumer.
+    /// True when at least one usage view is visible OR the menu bar live label is enabled.
+    static func hasActiveConsumer(viewConsumerCount: Int, menuBarEnabled: Bool) -> Bool {
+        viewConsumerCount > 0 || menuBarEnabled
+    }
+
     // MARK: - Status Label
 
     /// Returns a human-readable status label for the polling state.

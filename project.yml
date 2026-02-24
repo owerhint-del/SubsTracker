@@ -39,6 +39,8 @@ targets:
       - path: SubsTracker/Services/RefreshScheduleEngine.swift
       - path: SubsTracker/Services/BackgroundRefreshPolicyEngine.swift
       - path: SubsTracker/Services/UsagePollingEngine.swift
+      - path: SubsTracker/Services/MenuBarLabelEngine.swift
+      - path: Shared/CurrencyFormatter.swift
       - path: SubsTracker/Models/Enums.swift
       - path: SubsTracker/Models/GmailModels.swift
     settings:
