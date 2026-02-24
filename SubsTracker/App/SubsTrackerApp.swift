@@ -159,7 +159,7 @@ struct ContentView: View {
             }
 
             Section("Subscriptions") {
-                ForEach(subscriptionVM.subscriptions) { sub in
+                ForEach(subscriptionVM.activeSubscriptions) { sub in
                     Label {
                         HStack {
                             Text(sub.name)

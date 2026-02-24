@@ -98,7 +98,24 @@ struct GmailScanReviewView: View {
                     }
                 }
 
-                // Section 4: Refunds (dimmed, deselected by default)
+                // Section 4: Canceled Subscriptions (dimmed, deselected by default)
+                let canceled = filteredCandidates(for: .canceled)
+                if !canceled.isEmpty {
+                    Section {
+                        ForEach(canceled, id: \.element.id) { index, candidate in
+                            candidateRow(candidate: candidate, index: index)
+                                .opacity(0.5)
+                        }
+                    } header: {
+                        sectionHeader(
+                            title: "Canceled Subscriptions",
+                            icon: "xmark.circle",
+                            count: canceled.count
+                        )
+                    }
+                }
+
+                // Section 5: Refunds (dimmed, deselected by default)
                 let refunds = filteredCandidates(for: .refunds)
                 if !refunds.isEmpty {
                     Section {
@@ -122,18 +139,21 @@ struct GmailScanReviewView: View {
     // MARK: - Section Filtering
 
     private enum SectionType {
-        case recurring, topups, oneTime, refunds
+        case recurring, topups, oneTime, canceled, refunds
     }
 
     private func filteredCandidates(for section: SectionType) -> [(offset: Int, element: SubscriptionCandidate)] {
         Array(scanVM.candidates.enumerated()).filter { _, candidate in
             switch section {
             case .recurring:
-                return candidate.chargeType.isRecurring || candidate.chargeType == .unknown
+                return (candidate.chargeType.isRecurring || candidate.chargeType == .unknown)
+                    && candidate.subscriptionStatus != .canceled
             case .topups:
                 return candidate.chargeType == .usageTopup
             case .oneTime:
                 return candidate.chargeType == .addonCredits || candidate.chargeType == .oneTimePurchase
+            case .canceled:
+                return candidate.subscriptionStatus == .canceled && candidate.chargeType != .refundOrReversal
             case .refunds:
                 return candidate.chargeType == .refundOrReversal
             }
@@ -180,6 +200,11 @@ struct GmailScanReviewView: View {
 
                     // Charge type badge
                     chargeTypeBadge(candidate.chargeType)
+
+                    // Status badge (only when not active)
+                    if candidate.subscriptionStatus != .active {
+                        statusBadge(candidate.subscriptionStatus, effectiveDate: candidate.statusEffectiveDate)
+                    }
                 }
 
                 HStack(spacing: 8) {
@@ -259,6 +284,34 @@ struct GmailScanReviewView: View {
             .background(chargeTypeColor(type).opacity(0.12))
             .foregroundStyle(chargeTypeColor(type))
             .clipShape(Capsule())
+    }
+
+    private func statusBadge(_ status: SubscriptionStatus, effectiveDate: Date?) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: status.iconSystemName)
+                .font(.caption2)
+            Text(status.displayName)
+                .font(.caption2)
+                .fontWeight(.medium)
+            if let date = effectiveDate {
+                Text("since \(date.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.caption2)
+            }
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 1)
+        .background(statusColor(status).opacity(0.12))
+        .foregroundStyle(statusColor(status))
+        .clipShape(Capsule())
+    }
+
+    private func statusColor(_ status: SubscriptionStatus) -> Color {
+        switch status {
+        case .active: return .green
+        case .canceled: return .red
+        case .paused: return .orange
+        case .expired: return .gray
+        }
     }
 
     private func chargeTypeColor(_ type: ChargeType) -> Color {

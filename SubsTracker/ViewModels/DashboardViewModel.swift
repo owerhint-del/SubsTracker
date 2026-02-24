@@ -268,7 +268,8 @@ final class DashboardViewModel {
         let subDescriptor = FetchDescriptor<Subscription>(
             sortBy: [SortDescriptor(\.name)]
         )
-        subscriptions = (try? context.fetch(subDescriptor)) ?? []
+        // Only use active subscriptions for financial calculations and dashboard display
+        subscriptions = ((try? context.fetch(subDescriptor)) ?? []).filter { $0.isActive }
 
         // Load last 7 days of usage for the stats section
         let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!

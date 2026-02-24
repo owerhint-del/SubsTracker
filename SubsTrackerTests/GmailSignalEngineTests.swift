@@ -884,3 +884,284 @@ final class AIResponseChargeTypeParsingTests: XCTestCase {
         XCTAssertEqual(candidates[0].chargeType, .unknown)
     }
 }
+
+// MARK: - Cancellation Signal Detection Tests
+
+final class CancellationSignalTests: XCTestCase {
+
+    func testExplicitCancellation_HighScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Your subscription has been canceled",
+            snippet: "We're sorry to see you go"
+        )
+        XCTAssertGreaterThanOrEqual(score, 0.95, "Explicit cancellation should score >= 0.95")
+    }
+
+    func testCancellationConfirmed_HighScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Cancellation confirmed",
+            snippet: "Your Netflix membership has been canceled"
+        )
+        XCTAssertGreaterThanOrEqual(score, 0.95)
+    }
+
+    func testCancelAnytime_ZeroScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Welcome to Spotify Premium",
+            snippet: "You can cancel anytime from your account settings"
+        )
+        XCTAssertEqual(score, 0, "'cancel anytime' is a false positive and should score 0")
+    }
+
+    func testRegularBillingEmail_ZeroScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Your receipt from Vercel",
+            snippet: "Thank you for your payment of $20.00"
+        )
+        XCTAssertEqual(score, 0, "Regular billing email should score 0")
+    }
+
+    func testAccountClosed_HighScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Account closed",
+            snippet: "Your account has been successfully closed"
+        )
+        XCTAssertGreaterThanOrEqual(score, 0.85, "Account closed should score >= 0.85")
+    }
+
+    func testMembershipCanceled_HighScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Membership canceled",
+            snippet: "Your gym membership has been canceled effective today"
+        )
+        XCTAssertGreaterThanOrEqual(score, 0.90)
+    }
+}
+
+// MARK: - Lifecycle Resolution Tests
+
+final class LifecycleResolutionTests: XCTestCase {
+
+    func testChargeThenCancel_ResultsCanceled() {
+        let emails: [(date: Date, subject: String, snippet: String)] = [
+            (Date(timeIntervalSinceNow: -60*86400), "Your receipt from Netflix", "Payment of $15.99", ""),
+            (Date(timeIntervalSinceNow: -30*86400), "Subscription canceled", "Your Netflix subscription has been canceled", "")
+        ].map { ($0.0, $0.1, $0.2) }
+
+        let result = GmailSignalEngine.resolveLifecycle(
+            emails: emails,
+            aiStatus: .active,
+            aiStatusDate: nil
+        )
+        XCTAssertEqual(result.status, .canceled, "Cancel after charge should result in canceled")
+        XCTAssertGreaterThanOrEqual(result.confidence, 0.85)
+    }
+
+    func testCancelThenCharge_ResultsActive() {
+        let emails: [(date: Date, subject: String, snippet: String)] = [
+            (Date(timeIntervalSinceNow: -60*86400), "Subscription canceled", "Your subscription has been canceled", ""),
+            (Date(timeIntervalSinceNow: -10*86400), "Your receipt from Netflix", "Payment of $15.99 received", "")
+        ].map { ($0.0, $0.1, $0.2) }
+
+        let result = GmailSignalEngine.resolveLifecycle(
+            emails: emails,
+            aiStatus: .canceled,
+            aiStatusDate: nil
+        )
+        XCTAssertEqual(result.status, .active, "Charge after cancel should mean reactivated")
+    }
+
+    func testCancelAnytimeInTimeline_StaysActive() {
+        let emails: [(date: Date, subject: String, snippet: String)] = [
+            (Date(timeIntervalSinceNow: -30*86400), "Your receipt from Spotify", "Payment of $9.99. Cancel anytime from settings.", ""),
+            (Date(timeIntervalSinceNow: -5*86400), "Your receipt from Spotify", "Payment of $9.99 received", "")
+        ].map { ($0.0, $0.1, $0.2) }
+
+        let result = GmailSignalEngine.resolveLifecycle(
+            emails: emails,
+            aiStatus: .active,
+            aiStatusDate: nil
+        )
+        XCTAssertEqual(result.status, .active, "'cancel anytime' should not trigger cancellation")
+    }
+
+    func testEmptyTimeline_DefersToAI() {
+        let result = GmailSignalEngine.resolveLifecycle(
+            emails: [],
+            aiStatus: .canceled,
+            aiStatusDate: Date()
+        )
+        XCTAssertEqual(result.status, .canceled, "Empty timeline should defer to AI status")
+        XCTAssertEqual(result.confidence, 0.5, "Empty timeline confidence should be low")
+    }
+}
+
+// MARK: - Parsed Status Field Tests
+
+final class ParsedStatusFieldTests: XCTestCase {
+
+    func testParse_CanceledStatus() {
+        let json: [[String: Any]] = [[
+            "service_name": "Netflix",
+            "cost": 15.99,
+            "billing_cycle": "monthly",
+            "category": "Streaming",
+            "charge_type": "recurring_subscription",
+            "subscription_status": "canceled",
+            "status_effective_date": "2026-02-10",
+            "confidence": 0.9
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates.count, 1)
+        XCTAssertEqual(candidates[0].subscriptionStatus, .canceled)
+        XCTAssertNotNil(candidates[0].statusEffectiveDate)
+    }
+
+    func testParse_ActiveStatus() {
+        let json: [[String: Any]] = [[
+            "service_name": "Spotify",
+            "cost": 9.99,
+            "billing_cycle": "monthly",
+            "category": "Streaming",
+            "charge_type": "recurring_subscription",
+            "subscription_status": "active",
+            "confidence": 0.95
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates[0].subscriptionStatus, .active)
+    }
+
+    func testParse_MissingStatus_DefaultsToActive() {
+        let json: [[String: Any]] = [[
+            "service_name": "Vercel",
+            "cost": 20.0,
+            "billing_cycle": "monthly",
+            "category": "Development",
+            "confidence": 0.8
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates[0].subscriptionStatus, .active, "Missing status should default to active")
+    }
+
+    func testParse_InvalidStatus_DefaultsToActive() {
+        let json: [[String: Any]] = [[
+            "service_name": "TestService",
+            "cost": 10.0,
+            "billing_cycle": "monthly",
+            "category": "Other",
+            "subscription_status": "invalid_status",
+            "confidence": 0.7
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertEqual(candidates[0].subscriptionStatus, .active, "Invalid status should default to active")
+    }
+
+    func testParse_StatusEffectiveDate() {
+        let json: [[String: Any]] = [[
+            "service_name": "GitHub",
+            "cost": 4.0,
+            "billing_cycle": "monthly",
+            "category": "Development",
+            "subscription_status": "canceled",
+            "status_effective_date": "2026-01-15",
+            "confidence": 0.85
+        ]]
+
+        let candidates = GmailSignalEngine.parseCandidatesFromJSON(json)
+        XCTAssertNotNil(candidates[0].statusEffectiveDate, "Should parse status_effective_date")
+
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day], from: candidates[0].statusEffectiveDate!)
+        XCTAssertEqual(components.year, 2026)
+        XCTAssertEqual(components.month, 1)
+        XCTAssertEqual(components.day, 15)
+    }
+}
+
+// MARK: - Query Builder Cancellation Tests
+
+final class QueryBuilderCancellationTests: XCTestCase {
+
+    func testBuildQueries_ContainsCancellationKeywords() {
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: 12)
+        let combined = queries.joined(separator: " ")
+        XCTAssertTrue(combined.contains("cancel"), "Should search for cancellation emails")
+        XCTAssertTrue(combined.contains("unsubscribe"), "Should search for unsubscribe emails")
+    }
+
+    func testBuildQueries_HasSixQueries() {
+        let queries = GmailSignalEngine.buildSearchQueries(lookbackMonths: 12)
+        XCTAssertEqual(queries.count, 6, "Should now have 6 queries including cancellation")
+    }
+}
+
+// MARK: - Dedup Lifecycle Passthrough Tests
+
+final class DedupLifecycleTests: XCTestCase {
+
+    /// Canceled candidate matching an existing name should NOT be dropped by dedup.
+    func testDedup_CanceledCandidatePassesThroughExistingFilter() {
+        // Create a canceled candidate that matches an existing subscription name
+        var canceledCandidate = SubscriptionCandidate(
+            name: "Netflix",
+            cost: 15.99,
+            billingCycle: .monthly,
+            category: .streaming,
+            confidence: 0.95
+        )
+        canceledCandidate.chargeType = .recurringSubscription
+        canceledCandidate.subscriptionStatus = .canceled
+
+        // Also create an active candidate for a different service (control)
+        var activeExisting = SubscriptionCandidate(
+            name: "Spotify",
+            cost: 9.99,
+            billingCycle: .monthly,
+            category: .streaming,
+            confidence: 0.9
+        )
+        activeExisting.chargeType = .recurringSubscription
+        activeExisting.subscriptionStatus = .active
+
+        // Active candidate for a new service (should pass through)
+        var activeNew = SubscriptionCandidate(
+            name: "HBO Max",
+            cost: 15.99,
+            billingCycle: .monthly,
+            category: .streaming,
+            confidence: 0.85
+        )
+        activeNew.chargeType = .recurringSubscription
+        activeNew.subscriptionStatus = .active
+
+        let candidates = [canceledCandidate, activeExisting, activeNew]
+
+        // Netflix and Spotify are "existing" — active Spotify should be dropped, canceled Netflix should pass through
+        let result = GmailSignalEngine.testDeduplicateCandidates(candidates, existingNames: ["Netflix", "Spotify"])
+
+        let resultNames = result.map(\.name)
+        XCTAssertTrue(resultNames.contains("Netflix"), "Canceled candidate should pass through dedup even when matching existing name")
+        XCTAssertFalse(resultNames.contains("Spotify"), "Active duplicate of existing name should be dropped")
+        XCTAssertTrue(resultNames.contains("HBO Max"), "New active candidate should pass through")
+    }
+
+    /// Active candidate for an existing name should still be dropped (no lifecycle change).
+    func testDedup_ActiveDuplicateStillDropped() {
+        var activeCandidate = SubscriptionCandidate(
+            name: "Netflix",
+            cost: 15.99,
+            billingCycle: .monthly,
+            category: .streaming,
+            confidence: 0.9
+        )
+        activeCandidate.chargeType = .recurringSubscription
+        activeCandidate.subscriptionStatus = .active
+
+        let result = GmailSignalEngine.testDeduplicateCandidates([activeCandidate], existingNames: ["Netflix"])
+        XCTAssertTrue(result.isEmpty, "Active recurring duplicate of existing sub should be dropped")
+    }
+}

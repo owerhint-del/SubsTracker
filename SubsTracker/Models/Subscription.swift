@@ -14,6 +14,8 @@ final class Subscription {
     var iconName: String?
     var isAPIConnected: Bool
     var createdAt: Date
+    var status: String = "active"         // SubscriptionStatus raw value
+    var statusChangedAt: Date?            // when status last changed
 
     @Relationship(deleteRule: .cascade, inverse: \UsageRecord.subscription)
     var usageRecords: [UsageRecord]?
@@ -58,6 +60,13 @@ final class Subscription {
         get { SubscriptionCategory(rawValue: category) ?? .other }
         set { category = newValue.rawValue }
     }
+
+    var subscriptionStatus: SubscriptionStatus {
+        get { SubscriptionStatus(rawValue: status) ?? .active }
+        set { status = newValue.rawValue }
+    }
+
+    var isActive: Bool { subscriptionStatus == .active }
 
     /// Monthly cost normalized from any billing cycle
     var monthlyCost: Double {

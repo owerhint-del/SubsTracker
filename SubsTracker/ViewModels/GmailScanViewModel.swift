@@ -55,10 +55,11 @@ final class GmailScanViewModel {
         errorMessage = nil
 
         do {
-            // Fetch existing names so the AI skips them
+            // Fetch active subscription names so the AI skips them.
+            // Canceled subs are excluded so the AI re-analyzes them (enables reactivation detection).
             let descriptor = FetchDescriptor<Subscription>()
             let existing = (try? context.fetch(descriptor)) ?? []
-            let existingNames = existing.map(\.name)
+            let existingNames = existing.filter(\.isActive).map(\.name)
 
             let results = try await scanner.scanForSubscriptions(existingNames: existingNames)
             isScanning = false
@@ -81,6 +82,7 @@ final class GmailScanViewModel {
 
     /// Adds new subscriptions and updates existing ones (by name match).
     /// New subs get inserted; existing subs get their renewal date and cost refreshed.
+    /// Canceled candidates auto-mark existing matches as canceled.
     private func addOrUpdateSubscriptions(_ candidates: [SubscriptionCandidate], context: ModelContext) {
         let descriptor = FetchDescriptor<Subscription>()
         let existing = (try? context.fetch(descriptor)) ?? []
@@ -89,6 +91,21 @@ final class GmailScanViewModel {
             if let match = existing.first(where: {
                 GmailSignalEngine.namesMatch($0.name, candidate.name)
             }) {
+                // If candidate is canceled with high confidence, mark existing sub as canceled
+                if candidate.subscriptionStatus == .canceled && candidate.confidence >= 0.85 {
+                    match.subscriptionStatus = .canceled
+                    match.statusChangedAt = candidate.statusEffectiveDate ?? Date()
+                    NSLog("[AutoScan] Marked '%@' as canceled", match.name)
+                    continue
+                }
+
+                // If existing sub is canceled but incoming candidate is active → reactivation
+                if match.subscriptionStatus == .canceled && candidate.subscriptionStatus == .active && candidate.confidence >= 0.85 {
+                    match.subscriptionStatus = .active
+                    match.statusChangedAt = candidate.statusEffectiveDate ?? Date()
+                    NSLog("[AutoScan] Reactivated '%@'", match.name)
+                }
+
                 // Update existing subscription with fresh data from emails
                 if let renewalDate = candidate.renewalDate {
                     match.renewalDate = renewalDate
@@ -98,6 +115,9 @@ final class GmailScanViewModel {
                     match.billingCycle = candidate.billingCycle.rawValue
                 }
             } else {
+                // Don't insert new canceled subscriptions
+                if candidate.subscriptionStatus == .canceled { continue }
+
                 // Insert new subscription
                 let sub = Subscription(
                     name: candidate.name,
@@ -123,11 +143,11 @@ final class GmailScanViewModel {
         candidates = []
 
         do {
-            // Pass existing names so AI skips already-tracked subscriptions
+            // Pass active subscription names so AI skips them (canceled subs excluded for reactivation detection)
             var existingNames: [String] = []
             if let context {
                 let descriptor = FetchDescriptor<Subscription>()
-                existingNames = ((try? context.fetch(descriptor)) ?? []).map(\.name)
+                existingNames = ((try? context.fetch(descriptor)) ?? []).filter(\.isActive).map(\.name)
             }
             let results = try await scanner.scanForSubscriptions(existingNames: existingNames)
             candidates = results
@@ -137,9 +157,12 @@ final class GmailScanViewModel {
             if results.isEmpty {
                 errorMessage = "No charges found in your emails"
             } else {
-                // Auto-deselect refunds (shown for info but not saved by default)
+                // Auto-deselect refunds and canceled subscriptions (shown for info but not saved by default)
                 for i in candidates.indices {
                     if candidates[i].chargeType == .refundOrReversal {
+                        candidates[i].isSelected = false
+                    }
+                    if candidates[i].subscriptionStatus == .canceled {
                         candidates[i].isSelected = false
                     }
                 }
@@ -179,6 +202,10 @@ final class GmailScanViewModel {
         candidates.filter { $0.chargeType.isNonRecurring }
     }
 
+    var canceledCandidates: [SubscriptionCandidate] {
+        candidates.filter { $0.subscriptionStatus == .canceled && $0.chargeType != .refundOrReversal }
+    }
+
     var refundCandidates: [SubscriptionCandidate] {
         candidates.filter { $0.chargeType == .refundOrReversal }
     }
@@ -192,8 +219,9 @@ final class GmailScanViewModel {
 
     func selectAll() {
         for i in candidates.indices {
-            // Don't select refunds
-            if candidates[i].chargeType != .refundOrReversal {
+            // Don't select refunds or canceled subscriptions
+            if candidates[i].chargeType != .refundOrReversal
+                && candidates[i].subscriptionStatus != .canceled {
                 candidates[i].isSelected = true
             }
         }
@@ -215,6 +243,9 @@ final class GmailScanViewModel {
         let selected = candidates.filter(\.isSelected)
 
         for candidate in selected {
+            // Skip canceled recurring subscriptions — don't insert as active
+            if candidate.subscriptionStatus == .canceled { continue }
+
             if candidate.chargeType.isRecurring || candidate.chargeType == .unknown {
                 // Recurring → Subscription model
                 viewModel.addSubscription(

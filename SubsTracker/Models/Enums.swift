@@ -5,6 +5,7 @@ import Foundation
 enum ServiceProvider: String, Codable, CaseIterable, Identifiable {
     case anthropic
     case openai
+    case codex
     case manual
 
     var id: String { rawValue }
@@ -13,6 +14,7 @@ enum ServiceProvider: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .anthropic: return "Anthropic (Claude)"
         case .openai: return "OpenAI"
+        case .codex: return "OpenAI Codex"
         case .manual: return "Manual"
         }
     }
@@ -21,6 +23,7 @@ enum ServiceProvider: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .anthropic: return "brain.head.profile"
         case .openai: return "cpu"
+        case .codex: return "terminal"
         case .manual: return "square.and.pencil"
         }
     }
@@ -67,6 +70,35 @@ enum DataSource: String, Codable, CaseIterable, Identifiable {
         case .api: return "API"
         case .localFile: return "Local File"
         case .manual: return "Manual Entry"
+        }
+    }
+}
+
+// MARK: - Subscription Status
+
+enum SubscriptionStatus: String, Codable, CaseIterable, Identifiable {
+    case active
+    case canceled
+    case paused
+    case expired
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .active: return "Active"
+        case .canceled: return "Canceled"
+        case .paused: return "Paused"
+        case .expired: return "Expired"
+        }
+    }
+
+    var iconSystemName: String {
+        switch self {
+        case .active: return "checkmark.circle.fill"
+        case .canceled: return "xmark.circle"
+        case .paused: return "pause.circle"
+        case .expired: return "clock.badge.xmark"
         }
     }
 }

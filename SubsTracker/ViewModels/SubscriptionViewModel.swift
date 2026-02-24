@@ -12,11 +12,17 @@ final class SubscriptionViewModel {
 
     // MARK: - Filtered/Grouped
 
+    /// Active subscriptions only — excludes canceled/paused/expired
+    var activeSubscriptions: [Subscription] {
+        subscriptions.filter { $0.isActive }
+    }
+
     var filteredSubscriptions: [Subscription] {
+        let base = activeSubscriptions
         if searchText.isEmpty {
-            return subscriptions
+            return base
         }
-        return subscriptions.filter {
+        return base.filter {
             $0.name.localizedCaseInsensitiveContains(searchText)
         }
     }

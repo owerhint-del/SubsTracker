@@ -410,6 +410,124 @@ enum GmailSignalEngine {
         return (aiType, 0.5)
     }
 
+    // MARK: - Cancellation Signal Detection
+
+    /// Keywords that indicate a subscription was canceled (weighted).
+    private static let cancellationSignals: [(String, Double)] = [
+        ("your subscription has been canceled", 0.99),
+        ("your subscription has been cancelled", 0.99),
+        ("subscription canceled", 0.97),
+        ("subscription cancelled", 0.97),
+        ("cancellation confirmed", 0.97),
+        ("cancellation confirmation", 0.97),
+        ("membership canceled", 0.95),
+        ("membership cancelled", 0.95),
+        ("subscription ended", 0.95),
+        ("account closed", 0.90),
+        ("successfully unsubscribed", 0.88),
+        ("your plan has been canceled", 0.95),
+        ("your plan has been cancelled", 0.95),
+        ("we've canceled your", 0.95),
+        ("we've cancelled your", 0.95),
+        ("you have canceled", 0.93),
+        ("you have cancelled", 0.93),
+        ("subscription has expired", 0.90),
+        ("plan expired", 0.88),
+        ("service terminated", 0.88),
+        ("your account has been deactivated", 0.85)
+    ]
+
+    /// Phrases that look like cancellation but are NOT actual cancellation events.
+    private static let cancellationFalsePositives: Set<String> = [
+        "cancel anytime",
+        "you can cancel",
+        "easy to cancel",
+        "cancellation policy",
+        "how to cancel",
+        "free to cancel",
+        "cancel at any time",
+        "cancel your subscription anytime",
+        "cancel before",
+        "cancel within",
+        "no cancellation fee",
+        "risk-free cancellation"
+    ]
+
+    /// Detects cancellation signal strength (0.0–1.0) from email subject/snippet.
+    /// False positives are checked first — if present, returns 0 regardless of other keywords.
+    static func detectCancellationSignal(subject: String, snippet: String) -> Double {
+        let combinedText = "\(subject) \(snippet)".lowercased()
+
+        // False positives override everything
+        for fp in cancellationFalsePositives {
+            if combinedText.contains(fp) {
+                return 0
+            }
+        }
+
+        var maxScore: Double = 0
+        for (keyword, weight) in cancellationSignals {
+            if combinedText.contains(keyword) {
+                maxScore = max(maxScore, weight)
+            }
+        }
+
+        return maxScore
+    }
+
+    // MARK: - Chronological Lifecycle Resolution
+
+    struct LifecycleResult {
+        let status: SubscriptionStatus
+        let effectiveDate: Date?
+        let confidence: Double
+    }
+
+    /// Resolves subscription lifecycle from a chronological email timeline.
+    /// Compares the latest cancel event vs latest charge event to determine current status.
+    static func resolveLifecycle(
+        emails: [(date: Date, subject: String, snippet: String)],
+        aiStatus: SubscriptionStatus,
+        aiStatusDate: Date?
+    ) -> LifecycleResult {
+        guard !emails.isEmpty else {
+            return LifecycleResult(status: aiStatus, effectiveDate: aiStatusDate, confidence: 0.5)
+        }
+
+        // Find the latest cancel event and latest charge event
+        var latestCancel: (date: Date, score: Double)?
+        var latestCharge: (date: Date, score: Double)?
+
+        for email in emails {
+            let cancelScore = detectCancellationSignal(subject: email.subject, snippet: email.snippet)
+            if cancelScore >= 0.80 {
+                if latestCancel == nil || email.date > latestCancel!.date {
+                    latestCancel = (email.date, cancelScore)
+                }
+            }
+
+            let billingScore = billingSignalScore(subject: email.subject, snippet: email.snippet)
+            if billingScore >= 0.70 {
+                if latestCharge == nil || email.date > latestCharge!.date {
+                    latestCharge = (email.date, billingScore)
+                }
+            }
+        }
+
+        // Decision logic
+        if let cancel = latestCancel {
+            if let charge = latestCharge, charge.date > cancel.date {
+                // Charge after cancel = reactivated
+                return LifecycleResult(status: .active, effectiveDate: charge.date, confidence: 0.90)
+            }
+            // Cancel is newest event
+            return LifecycleResult(status: .canceled, effectiveDate: cancel.date, confidence: cancel.score)
+        }
+
+        // No cancellation found — defer to AI status
+        return LifecycleResult(status: aiStatus, effectiveDate: aiStatusDate, confidence: 0.6)
+    }
+
     // MARK: - Gmail Query Builder
 
     /// Builds Gmail search queries for subscription/billing email detection.
@@ -425,7 +543,9 @@ enum GmailSignalEngine {
             // API/usage top-ups
             "subject:(\"top up\" OR credits OR \"usage\" OR tokens OR prepaid) \(timeFilter)",
             // Refunds (we detect and exclude later)
-            "subject:(refund OR reversal OR chargeback) \(timeFilter)"
+            "subject:(refund OR reversal OR chargeback) \(timeFilter)",
+            // Cancellations and lifecycle events
+            "subject:(cancel OR cancelled OR canceled OR unsubscribe OR \"subscription ended\") \(timeFilter)"
         ]
     }
 
@@ -461,6 +581,13 @@ enum GmailSignalEngine {
             let chargeTypeStr = sub["charge_type"] as? String ?? "unknown"
             let chargeType = ChargeType(rawValue: chargeTypeStr) ?? .unknown
 
+            // Parse subscription status from AI response
+            let statusStr = sub["subscription_status"] as? String ?? "active"
+            let subscriptionStatus = SubscriptionStatus(rawValue: statusStr) ?? .active
+
+            let statusDateStr = sub["status_effective_date"] as? String
+            let statusEffectiveDate = statusDateStr.flatMap { dateFormatter.date(from: $0) }
+
             return SubscriptionCandidate(
                 name: name,
                 cost: cost,
@@ -472,8 +599,48 @@ enum GmailSignalEngine {
                 costSource: costSource,
                 isEstimated: isEstimated,
                 evidence: evidence,
-                chargeType: chargeType
+                chargeType: chargeType,
+                subscriptionStatus: subscriptionStatus,
+                statusEffectiveDate: statusEffectiveDate
             )
         }
+    }
+
+    // MARK: - Deduplication (Pure Logic)
+
+    /// Deduplicates candidates, filtering active recurring duplicates against existing subscription names.
+    /// Lets through candidates with lifecycle changes (canceled/paused/expired) even when matching existing names.
+    static func testDeduplicateCandidates(_ candidates: [SubscriptionCandidate], existingNames: [String]) -> [SubscriptionCandidate] {
+        deduplicateCandidates(candidates, existingNames: existingNames)
+    }
+
+    /// Core dedup logic — used by both the scanner service and tests.
+    static func deduplicateCandidates(_ candidates: [SubscriptionCandidate], existingNames: [String]) -> [SubscriptionCandidate] {
+        let normalizedExisting = existingNames.map { normalizeName($0) }
+        let filtered = candidates.filter { candidate in
+            guard candidate.chargeType.isRecurring || candidate.chargeType == .unknown else { return true }
+            // Let through candidates carrying a lifecycle change
+            guard candidate.subscriptionStatus == .active else { return true }
+            let normalizedCandidate = normalizeName(candidate.name)
+            return !normalizedExisting.contains { existing in
+                namesMatch(normalizedCandidate, existing)
+            }
+        }
+
+        var grouped: [String: [SubscriptionCandidate]] = [:]
+        for candidate in filtered {
+            let key = "\(normalizeName(candidate.name))|\(candidate.chargeType.rawValue)"
+            grouped[key, default: []].append(candidate)
+        }
+
+        return grouped.values.compactMap { group -> SubscriptionCandidate? in
+            guard var best = group.max(by: { $0.confidence < $1.confidence }) else { return nil }
+            best.sourceEmailCount = group.count
+            if let mostRecentDate = group.compactMap({ $0.renewalDate }).max() {
+                best.renewalDate = mostRecentDate
+            }
+            return best
+        }
+        .sorted { $0.confidence > $1.confidence }
     }
 }

@@ -38,6 +38,14 @@ struct EmailMetadata {
     let snippet: String
 }
 
+// MARK: - Email Summary (for timeline)
+
+struct EmailSummary {
+    let date: Date
+    let subject: String
+    let snippet: String
+}
+
 // MARK: - Cost Source
 
 enum CostSource: String {
@@ -110,6 +118,7 @@ struct SenderSummary {
     let latestSnippet: String
     var billingScore: Double = 0
     var bodyText: String?       // populated by selective body fetch
+    var recentEmails: [EmailSummary] = []  // up to 10, newest first
 }
 
 // MARK: - Subscription Candidate (found by AI)
@@ -129,6 +138,8 @@ struct SubscriptionCandidate: Identifiable {
     var isEstimated: Bool = true
     var evidence: String?
     var chargeType: ChargeType = .unknown
+    var subscriptionStatus: SubscriptionStatus = .active
+    var statusEffectiveDate: Date?
 
     var confidenceLabel: String {
         if confidence >= 0.9 { return "High" }
