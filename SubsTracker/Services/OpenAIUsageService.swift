@@ -21,11 +21,8 @@ final class OpenAIUsageService {
             throw OpenAIError.noAPIKey
         }
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-
-        let startStr = formatter.string(from: startDate)
-        let endStr = formatter.string(from: endDate)
+        let startStr = SharedDateFormatter.yyyyMMdd.string(from: startDate)
+        let endStr = SharedDateFormatter.yyyyMMdd.string(from: endDate)
 
         guard var components = URLComponents(string: baseURL) else {
             throw OpenAIError.invalidURL
@@ -102,9 +99,7 @@ struct OpenAIDailyUsage: Codable, Identifiable {
     }
 
     var parsedDate: Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: date)
+        SharedDateFormatter.yyyyMMdd.date(from: date)
     }
 }
 

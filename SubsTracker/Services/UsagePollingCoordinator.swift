@@ -49,14 +49,20 @@ final class UsagePollingCoordinator {
     // MARK: - Timer
 
     private var timer: Timer?
-    private var refreshAction: (() async -> Bool)?  // returns true on success
+    private var refreshAction: (() async -> Bool)?       // full refresh (all data)
+    private var lightRefreshAction: (() async -> Bool)?  // lightweight (menu bar only)
 
     // MARK: - Lifecycle
 
-    /// Set the shared refresh action. Call once at app startup.
-    /// The action should refresh all usage data and return true on success.
-    func setRefreshAction(_ action: @escaping () async -> Bool) {
-        refreshAction = action
+    /// Set the shared refresh actions. Call once at app startup.
+    /// `full`: refreshes all usage data (for when usage views are open).
+    /// `light`: refreshes only menu-bar data (API utilization + rate limits).
+    func setRefreshActions(
+        full: @escaping () async -> Bool,
+        light: @escaping () async -> Bool
+    ) {
+        refreshAction = full
+        lightRefreshAction = light
         evaluateTimer()
         // Immediate first refresh if consumers are waiting
         if hasActiveConsumer && isAppActive {
@@ -91,10 +97,20 @@ final class UsagePollingCoordinator {
         }
     }
 
-    /// Force an immediate refresh (manual refresh button).
+    /// Force an immediate full refresh (manual refresh button).
     func refreshNow() async {
-        guard !isRefreshing else { return }
-        await executeRefresh()
+        guard !isRefreshing, let action = refreshAction else { return }
+        isRefreshing = true
+        let success = await action()
+        isRefreshing = false
+        if success {
+            consecutiveErrors = 0
+            lastErrorAt = nil
+        } else {
+            consecutiveErrors += 1
+            lastErrorAt = Date()
+        }
+        evaluateTimer()
     }
 
     // MARK: - Status
@@ -159,8 +175,16 @@ final class UsagePollingCoordinator {
     }
 
     private func executeRefresh() async {
-        guard let action = refreshAction else { return }
+        guard refreshAction != nil else { return }
         isRefreshing = true
+
+        // Use lightweight refresh when only menu bar is active (no usage views open)
+        let action: () async -> Bool
+        if viewConsumerCount == 0, let light = lightRefreshAction {
+            action = light
+        } else {
+            action = refreshAction!
+        }
 
         let success = await action()
 

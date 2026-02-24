@@ -32,9 +32,10 @@ final class UsageViewModel {
         claudeError = nil
 
         do {
-            claudeDailyUsage = try claudeService.fetchDailyUsage()
-            claudeModelUsage = try claudeService.fetchModelUsage()
-            claudeSummary = try claudeService.fetchSummary()
+            let snapshot = try claudeService.fetchAll()
+            claudeDailyUsage = snapshot.dailyUsage
+            claudeModelUsage = snapshot.modelUsage
+            claudeSummary = snapshot.summary
         } catch {
             claudeError = error.localizedDescription
         }
@@ -108,23 +109,37 @@ final class UsageViewModel {
 
         do {
             let service = codexService
-            let (daily, models, summary, limits) = try await Task.detached {
-                let d = try service.fetchDailyUsage()
-                let m = try service.fetchModelUsage()
-                let s = try service.fetchSummary()
-                let l = try service.fetchRateLimits()
-                return (d, m, s, l)
+            let snapshot = try await Task.detached {
+                try service.fetchAll()
             }.value
 
-            codexDailyUsage = daily
-            codexModelUsage = models
-            codexSummary = summary
-            codexRateLimits = limits
+            codexDailyUsage = snapshot.dailyUsage
+            codexModelUsage = snapshot.modelUsage
+            codexSummary = snapshot.summary
+            codexRateLimits = snapshot.rateLimits
         } catch {
             codexError = error.localizedDescription
         }
 
         isLoadingCodex = false
+    }
+
+    /// Lightweight refresh: only fetches data needed for menu bar display.
+    /// Skips heavy local file parsing (Claude daily/model data, full Codex scan).
+    func loadMenuBarData() async {
+        await loadClaudeAPIData()
+        do {
+            let service = codexService
+            let limits = try await Task.detached {
+                try service.fetchRateLimitsOnly()
+            }.value
+            codexRateLimits = limits
+        } catch {
+            // Non-critical — menu bar will show "—" for Codex
+        }
+        if hasOpenAIKey {
+            await loadOpenAIData()
+        }
     }
 
     var codexTotalTokens: Int {

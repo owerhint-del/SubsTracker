@@ -106,16 +106,24 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.3), value: gmailScanVM.isScanning)
         .onAppear {
             subscriptionVM.loadSubscriptions(context: modelContext)
-            // Set shared refresh action once — refreshes all usage data
-            pollingCoordinator.setRefreshAction { [usageVM] in
-                usageVM.loadClaudeData()
-                await usageVM.loadClaudeAPIData()
-                await usageVM.loadCodexData()
-                if usageVM.hasOpenAIKey {
-                    await usageVM.loadOpenAIData()
+            // Set shared refresh actions once
+            pollingCoordinator.setRefreshActions(
+                full: { [usageVM] in
+                    // Full refresh — all data (when usage views are open)
+                    usageVM.loadClaudeData()
+                    await usageVM.loadClaudeAPIData()
+                    await usageVM.loadCodexData()
+                    if usageVM.hasOpenAIKey {
+                        await usageVM.loadOpenAIData()
+                    }
+                    return usageVM.claudeError == nil && usageVM.codexError == nil
+                },
+                light: { [usageVM] in
+                    // Lightweight refresh — only API calls (menu bar only)
+                    await usageVM.loadMenuBarData()
+                    return true
                 }
-                return usageVM.claudeError == nil && usageVM.codexError == nil
-            }
+            )
             Task {
                 await manager.startAutoRefresh(context: modelContext)
                 await gmailScanVM.autoScanIfNeeded(context: modelContext)

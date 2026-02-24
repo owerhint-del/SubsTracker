@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -24,6 +24,7 @@
 		3BBF5E3CED24D2E43A8DB473 /* FinanceExportEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */; };
 		3D27BD20C05DD844445085D3 /* SubsTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AAF0680827A86906A94BF4 /* SubsTrackerApp.swift */; };
 		3FC541BE41D503714FECE955 /* UsagePollingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 085EA37841433F827727241E /* UsagePollingEngine.swift */; };
+		402005F1A0D247D541C526E4 /* SharedDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFBDE0C7D444C489CC554990 /* SharedDateFormatter.swift */; };
 		4592CCFB586F618F6CD8AE91 /* BackgroundRefreshPolicyEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A4073116F00EE10ED2CD99 /* BackgroundRefreshPolicyEngine.swift */; };
 		5171F2AD81AD9F100DB11E21 /* GmailSignalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9950BB11F54D4838E7511E /* GmailSignalEngine.swift */; };
 		51756EB01271F7EC9BDBBEFA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E09DFFED04A2B76E346541A6 /* Assets.xcassets */; };
@@ -33,6 +34,7 @@
 		5ECE3343B256BDAA865B32C0 /* GmailScanReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05571B43FD75A0147A5C1C19 /* GmailScanReviewView.swift */; };
 		5ED5A7A9EEB52409C05AC888 /* CurrencyFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20B810032AFD162213C3010 /* CurrencyFormatter.swift */; };
 		613785BBF9055E538A084725 /* ClaudeCodeLocalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F2E63407813F784022CE601 /* ClaudeCodeLocalService.swift */; };
+		6295EC4FB22D84616CAED786 /* SharedDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFBDE0C7D444C489CC554990 /* SharedDateFormatter.swift */; };
 		640B783A35400AF821C9FFD9 /* BackgroundRefreshPolicyEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B627C7E806E430C9B2A3EE93 /* BackgroundRefreshPolicyEngineTests.swift */; };
 		6941C2369B8A6574BE257896 /* NotificationDecisions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11613571515348A97F3AA4DE /* NotificationDecisions.swift */; };
 		6EC5A4E8F95463453066B589 /* UsageRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A48B9187892CFE047769A4F /* UsageRecord.swift */; };
@@ -40,6 +42,7 @@
 		7365BD15A0233CF414EDAEA8 /* TopUpRecommendationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10872328B921E6DB176743E7 /* TopUpRecommendationEngineTests.swift */; };
 		738E9F2B6F263EEE805913BE /* CodexLocalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 657E213F8205572CB9698552 /* CodexLocalService.swift */; };
 		749C4BBD211B0302C6D0345E /* MenuBarLabelEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B2BC92D2083A87D67DEA3C /* MenuBarLabelEngine.swift */; };
+		76CF51965FBC148D8A74FCB2 /* SharedDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFBDE0C7D444C489CC554990 /* SharedDateFormatter.swift */; };
 		7DBFD58696FB6488E30C44A1 /* OpenAIUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CCEE6D100A11E5F433A4D30 /* OpenAIUsageView.swift */; };
 		7E4846CD729120B4F6AF6CEA /* RefreshScheduleEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91F0A46F38DCC8DD0BD859D5 /* RefreshScheduleEngine.swift */; };
 		816EA3AA806120B29E81E453 /* UsagePollingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E32E101AE02579A268D2B01B /* UsagePollingCoordinator.swift */; };
@@ -146,6 +149,7 @@
 		C25481A4F16BB1A3B77AE6F9 /* FinanceExportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportEngine.swift; sourceTree = "<group>"; };
 		C4BEB6BFB8E492B9D82B0C0B /* FinanceExportEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceExportEngineTests.swift; sourceTree = "<group>"; };
 		CD4668E14DAEDB5024C93EB3 /* UsageViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageViewModel.swift; sourceTree = "<group>"; };
+		CFBDE0C7D444C489CC554990 /* SharedDateFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDateFormatter.swift; sourceTree = "<group>"; };
 		D2A18C3CEA59E3D7F16F3289 /* OneTimePurchase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OneTimePurchase.swift; sourceTree = "<group>"; };
 		D3639B1867E9EA555C6C7B8F /* MenuBarLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarLabel.swift; sourceTree = "<group>"; };
 		D3B2537D3EEA1C72F95C43EC /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -293,6 +297,7 @@
 			children = (
 				37A7A815CDC3778875CA65B3 /* AppGroupConstants.swift */,
 				E20B810032AFD162213C3010 /* CurrencyFormatter.swift */,
+				CFBDE0C7D444C489CC554990 /* SharedDateFormatter.swift */,
 				FF836713C899BECDB1461094 /* WidgetData.swift */,
 			);
 			path = Shared;
@@ -443,7 +448,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1620;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					105137F5CED3D4359541B999 = {
 						DevelopmentTeam = "";
@@ -464,7 +469,6 @@
 			);
 			mainGroup = 2C847B3B6107033D87727EF6;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -512,6 +516,7 @@
 				898C348FD39E5D345AFBDC1D /* RefreshScheduleEngineTests.swift in Sources */,
 				8C2C000673DDE1AFFD2FA995 /* RenewalProjectionEngine.swift in Sources */,
 				165CF59E5EBCB5ADA3A73671 /* RenewalProjectionEngineTests.swift in Sources */,
+				6295EC4FB22D84616CAED786 /* SharedDateFormatter.swift in Sources */,
 				93383A64A813E5B738215B79 /* TopUpRecommendationEngine.swift in Sources */,
 				7365BD15A0233CF414EDAEA8 /* TopUpRecommendationEngineTests.swift in Sources */,
 				3FC541BE41D503714FECE955 /* UsagePollingEngine.swift in Sources */,
@@ -558,6 +563,7 @@
 				C8496B14C8427D0A5499DED0 /* RenewalProjectionEngine.swift in Sources */,
 				03D5C2EAE60EEC4B9D772CF4 /* ScanProgressBanner.swift in Sources */,
 				903329407CB5B2A4C302573D /* SettingsView.swift in Sources */,
+				402005F1A0D247D541C526E4 /* SharedDateFormatter.swift in Sources */,
 				3D27BD20C05DD844445085D3 /* SubsTrackerApp.swift in Sources */,
 				C0BE01BEEA89FA02C727B51B /* Subscription.swift in Sources */,
 				E58E399B56BED8CC4F0D0954 /* SubscriptionDetailView.swift in Sources */,
@@ -582,6 +588,7 @@
 			files = (
 				CFFAE1525FB6CC6E88E08961 /* AppGroupConstants.swift in Sources */,
 				5ED5A7A9EEB52409C05AC888 /* CurrencyFormatter.swift in Sources */,
+				76CF51965FBC148D8A74FCB2 /* SharedDateFormatter.swift in Sources */,
 				1315238787131E3677A14D14 /* SubsTrackerWidget.swift in Sources */,
 				F56FAF4054CF4CA60ECB6B96 /* SubsTrackerWidgetBundle.swift in Sources */,
 				B251888E31FF411B1C77A26A /* WidgetData.swift in Sources */,
@@ -601,6 +608,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_GENERATION_CLASS = "";
@@ -627,13 +635,19 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.owerhintdel.substracker.widget;
 				PRODUCT_NAME = SubsTrackerWidget;
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -642,6 +656,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -672,9 +687,11 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -695,6 +712,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -710,6 +728,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_GENERATION_CLASS = "";
@@ -732,6 +751,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -748,6 +768,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -768,13 +789,19 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.owerhintdel.substracker.widget;
 				PRODUCT_NAME = SubsTrackerWidget;
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -783,6 +810,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -813,9 +841,11 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -829,6 +859,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;

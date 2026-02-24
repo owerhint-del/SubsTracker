@@ -10,46 +10,46 @@ final class CodexLocalService: Sendable {
         self.codexBasePath = basePath ?? "\(NSHomeDirectory())/.codex/sessions"
     }
 
-    // MARK: - Public API
+    // MARK: - Snapshot (single-pass)
 
-    /// Fetch aggregated daily usage for the last 30 days
-    func fetchDailyUsage() throws -> [CodexDailyUsage] {
+    /// All Codex data from a single scan — avoids redundant file I/O.
+    struct Snapshot {
+        let dailyUsage: [CodexDailyUsage]
+        let modelUsage: [String: CodexModelUsage]
+        let summary: CodexSummary
+        let rateLimits: CodexRateLimits?
+    }
+
+    /// Scan and parse all session files once, returning every dataset.
+    func fetchAll() throws -> Snapshot {
         let files = try scanSessionFiles(daysBack: 30)
+
         var usageByDate: [String: CodexDailyUsage] = [:]
+        var modelUsage: [String: CodexModelUsage] = [:]
+        var totalSessions = 0
+        var totalMessages = 0
+        var firstDate: String?
+        var lastRateLimits: CodexRateLimits?
 
         for file in files {
             let session = try parseSession(at: file.path)
             let dateKey = file.dateString
 
+            // Daily usage
             var daily = usageByDate[dateKey] ?? CodexDailyUsage(
                 date: dateKey,
                 messageCount: 0,
                 sessionCount: 0,
                 tokensByModel: [:]
             )
-
             daily.sessionCount += 1
             daily.messageCount += session.messageCount
-
-            // Merge tokens by model
             for (model, tokens) in session.tokensByModel {
                 daily.tokensByModel[model, default: 0] += tokens
             }
-
             usageByDate[dateKey] = daily
-        }
 
-        return usageByDate.values.sorted { $0.date < $1.date }
-    }
-
-    /// Fetch per-model token breakdown across all sessions
-    func fetchModelUsage() throws -> [String: CodexModelUsage] {
-        let files = try scanSessionFiles(daysBack: 30)
-        var modelUsage: [String: CodexModelUsage] = [:]
-
-        for file in files {
-            let session = try parseSession(at: file.path)
-
+            // Model usage
             for (model, usage) in session.modelUsage {
                 var existing = modelUsage[model] ?? CodexModelUsage(
                     inputTokens: 0,
@@ -63,40 +63,37 @@ final class CodexLocalService: Sendable {
                 existing.reasoningTokens += usage.reasoningTokens
                 modelUsage[model] = existing
             }
-        }
 
-        return modelUsage
-    }
-
-    /// Fetch summary stats across all sessions
-    func fetchSummary() throws -> CodexSummary {
-        let files = try scanSessionFiles(daysBack: 30)
-        var totalSessions = 0
-        var totalMessages = 0
-        var firstDate: String?
-
-        for file in files {
-            let session = try parseSession(at: file.path)
+            // Summary
             totalSessions += 1
             totalMessages += session.messageCount
+            if firstDate == nil || dateKey < (firstDate ?? "") {
+                firstDate = dateKey
+            }
 
-            if firstDate == nil || file.dateString < (firstDate ?? "") {
-                firstDate = file.dateString
+            // Rate limits — keep the last file's (chronologically latest)
+            if let rl = session.rateLimits {
+                lastRateLimits = rl
             }
         }
 
-        return CodexSummary(
-            totalSessions: totalSessions,
-            totalMessages: totalMessages,
-            firstSessionDate: firstDate
+        return Snapshot(
+            dailyUsage: usageByDate.values.sorted { $0.date < $1.date },
+            modelUsage: modelUsage,
+            summary: CodexSummary(
+                totalSessions: totalSessions,
+                totalMessages: totalMessages,
+                firstSessionDate: firstDate
+            ),
+            rateLimits: lastRateLimits
         )
     }
 
-    /// Fetch rate limits from the most recent session
-    func fetchRateLimits() throws -> CodexRateLimits? {
+    /// Lightweight: only fetch rate limits from the most recent session file.
+    /// Used for menu-bar-only polling to avoid full 30-day scan.
+    func fetchRateLimitsOnly() throws -> CodexRateLimits? {
         let files = try scanSessionFiles(daysBack: 7)
         guard let lastFile = files.last else { return nil }
-
         let session = try parseSession(at: lastFile.path)
         return session.rateLimits
     }
@@ -155,8 +152,7 @@ final class CodexLocalService: Sendable {
     }
 
     private func parseSession(at path: String) throws -> ParsedSession {
-        guard let data = FileManager.default.contents(atPath: path),
-              let content = String(data: data, encoding: .utf8) else {
+        guard let data = FileManager.default.contents(atPath: path) else {
             throw CodexDataError.parseError("Cannot read file: \(path)")
         }
 
@@ -167,10 +163,16 @@ final class CodexLocalService: Sendable {
         var lastMainRateLimits: RawRateLimits?
         var lastAnyRateLimits: RawRateLimits?
 
-        for line in content.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty,
-                  let lineData = trimmed.data(using: .utf8),
+        // Parse directly from Data — avoid full String copy.
+        // Split on newline byte (0x0A) and parse each line from its Data slice.
+        let newline = UInt8(ascii: "\n")
+        var start = data.startIndex
+        while start < data.endIndex {
+            let end = data[start...].firstIndex(of: newline) ?? data.endIndex
+            let lineData = data[start..<end]
+            start = (end < data.endIndex) ? data.index(after: end) : data.endIndex
+
+            guard !lineData.isEmpty,
                   let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else {
                 continue
             }
@@ -323,9 +325,7 @@ struct CodexDailyUsage {
     }
 
     var parsedDate: Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: date)
+        SharedDateFormatter.yyyyMMdd.date(from: date)
     }
 }
 

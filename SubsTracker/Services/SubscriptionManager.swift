@@ -654,7 +654,7 @@ final class SubscriptionManager: ObservableObject {
 
     func refreshClaudeUsage(context: ModelContext) async {
         do {
-            let dailyUsage = try claudeService.fetchDailyUsage()
+            let dailyUsage = try claudeService.fetchAll().dailyUsage
 
             // Find or create Claude subscription
             let claudeSub = findOrCreateSubscription(

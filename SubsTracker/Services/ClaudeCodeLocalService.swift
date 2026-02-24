@@ -30,12 +30,21 @@ final class ClaudeCodeLocalService {
         return try decoder.decode(ClaudeStatsCache.self, from: data)
     }
 
-    /// Converts stats cache into UsageRecord-compatible data
-    func fetchDailyUsage() throws -> [ClaudeDailyUsage] {
-        let cache = try readStatsCache()
-        var usageByDate: [String: ClaudeDailyUsage] = [:]
+    // MARK: - Snapshot (single-pass)
 
-        // Merge daily activity with daily model tokens
+    /// All Claude data from a single file read.
+    struct Snapshot {
+        let dailyUsage: [ClaudeDailyUsage]
+        let modelUsage: [String: ClaudeModelUsage]
+        let summary: ClaudeSummary
+    }
+
+    /// Read stats-cache.json once and return every dataset.
+    func fetchAll() throws -> Snapshot {
+        let cache = try readStatsCache()
+
+        // Daily usage
+        var usageByDate: [String: ClaudeDailyUsage] = [:]
         for activity in cache.dailyActivity {
             usageByDate[activity.date] = ClaudeDailyUsage(
                 date: activity.date,
@@ -45,7 +54,6 @@ final class ClaudeCodeLocalService {
                 tokensByModel: [:]
             )
         }
-
         for modelTokens in cache.dailyModelTokens {
             if usageByDate[modelTokens.date] != nil {
                 usageByDate[modelTokens.date]?.tokensByModel = modelTokens.tokensByModel
@@ -59,25 +67,19 @@ final class ClaudeCodeLocalService {
                 )
             }
         }
+        let dailyUsage = usageByDate.values.sorted { $0.date < $1.date }
 
-        return usageByDate.values
-            .sorted { $0.date < $1.date }
-    }
-
-    /// Total aggregate model usage from the cache
-    func fetchModelUsage() throws -> [String: ClaudeModelUsage] {
-        let cache = try readStatsCache()
-        return cache.modelUsage
-    }
-
-    /// Summary stats (total sessions, messages, etc.)
-    func fetchSummary() throws -> ClaudeSummary {
-        let cache = try readStatsCache()
-        return ClaudeSummary(
+        let summary = ClaudeSummary(
             totalSessions: cache.totalSessions,
             totalMessages: cache.totalMessages,
             firstSessionDate: cache.firstSessionDate,
             lastComputedDate: cache.lastComputedDate
+        )
+
+        return Snapshot(
+            dailyUsage: dailyUsage,
+            modelUsage: cache.modelUsage,
+            summary: summary
         )
     }
 }
@@ -139,9 +141,7 @@ struct ClaudeDailyUsage {
     }
 
     var parsedDate: Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: date)
+        SharedDateFormatter.yyyyMMdd.date(from: date)
     }
 }
 

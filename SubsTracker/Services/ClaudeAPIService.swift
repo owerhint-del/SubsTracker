@@ -236,12 +236,8 @@ final class ClaudeAPIService {
     }
 
     private func parseISO8601(_ string: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: string) { return date }
-        // Retry without fractional seconds
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: string)
+        SharedDateFormatter.iso8601.date(from: string)
+            ?? SharedDateFormatter.iso8601NoFraction.date(from: string)
     }
 }
 
