@@ -167,7 +167,8 @@ enum GmailSignalEngine {
         ("annual charge", 0.9),
         ("auto-pay", 0.7),
         ("autopay", 0.7),
-        ("direct debit", 0.7)
+        ("direct debit", 0.7),
+        ("recurring payment", 0.8)
     ]
 
     /// Computes a billing signal score (0.0 – 1.0) for text from email subject/snippet.
@@ -418,6 +419,8 @@ enum GmailSignalEngine {
         ("your subscription has been cancelled", 0.99),
         ("subscription canceled", 0.97),
         ("subscription cancelled", 0.97),
+        ("subscription has been canceled", 0.97),
+        ("subscription has been cancelled", 0.97),
         ("cancellation confirmed", 0.97),
         ("cancellation confirmation", 0.97),
         ("membership canceled", 0.95),
@@ -454,24 +457,42 @@ enum GmailSignalEngine {
     ]
 
     /// Detects cancellation signal strength (0.0–1.0) from email subject/snippet/body.
-    /// False positives are checked first — if present, returns 0 regardless of other keywords.
+    /// Subject/snippet signals take priority — a body false positive ("cancel anytime")
+    /// does NOT suppress a clear cancel signal in the subject.
     static func detectCancellationSignal(subject: String, snippet: String, bodyText: String? = nil) -> Double {
-        let combinedText = "\(subject) \(snippet) \(bodyText ?? "")".lowercased()
+        let headerText = "\(subject) \(snippet)".lowercased()
 
-        // False positives override everything
-        for fp in cancellationFalsePositives {
-            if combinedText.contains(fp) {
-                return 0
+        // Phase 1: Check subject+snippet in isolation
+        let headerHasFP = cancellationFalsePositives.contains { headerText.contains($0) }
+        if !headerHasFP {
+            var headerScore: Double = 0
+            for (keyword, weight) in cancellationSignals {
+                if headerText.contains(keyword) {
+                    headerScore = max(headerScore, weight)
+                }
             }
+            // Strong header signal → return immediately (body FPs don't override subject signals)
+            if headerScore >= 0.80 { return headerScore }
+        }
+
+        // Phase 2: Expand to body when header has no clear signal
+        guard let body = bodyText, !body.isEmpty else {
+            return headerHasFP ? 0 : 0
+        }
+
+        let fullText = "\(headerText) \(body.lowercased())"
+
+        // Check FPs in full text
+        for fp in cancellationFalsePositives {
+            if fullText.contains(fp) { return 0 }
         }
 
         var maxScore: Double = 0
         for (keyword, weight) in cancellationSignals {
-            if combinedText.contains(keyword) {
+            if fullText.contains(keyword) {
                 maxScore = max(maxScore, weight)
             }
         }
-
         return maxScore
     }
 

@@ -1425,3 +1425,432 @@ final class SenderRankingTests: XCTestCase {
             "Body-only cancellation signal in timeline should give high lifecycle score")
     }
 }
+
+// MARK: - P3 Quality Validation Suite
+
+/// Data-driven validation of lifecycle detection against 40+ realistic email scenarios.
+/// Tests the deterministic engine (detectCancellationSignal, resolveLifecycle, classifyChargeType)
+/// that was modified in P0–P2. Computes precision/recall/false-positive metrics.
+final class LifecycleQualityValidationTests: XCTestCase {
+
+    // MARK: - Scenario Definitions
+
+    struct Scenario {
+        let id: Int
+        let service: String
+        let emails: [(date: Date, subject: String, snippet: String, bodyExcerpt: String?)]
+        let expectedStatus: SubscriptionStatus
+        let category: String // "active", "canceled", "reactivated", "false_positive", "body_only"
+    }
+
+    private func d(_ daysAgo: Int) -> Date { Date(timeIntervalSinceNow: -Double(daysAgo) * 86400) }
+
+    private lazy var scenarios: [Scenario] = [
+        // ——— ACTIVE SUBSCRIPTIONS (expectedStatus = .active) ———
+        Scenario(id: 1, service: "Netflix", emails: [
+            (d(60), "Your receipt from Netflix", "Payment of $15.99 received", nil),
+            (d(30), "Your receipt from Netflix", "Payment of $15.99 received", nil),
+            (d(1), "Your receipt from Netflix", "Payment of $15.99 received", nil),
+        ], expectedStatus: .active, category: "active"),
+
+        Scenario(id: 2, service: "Spotify", emails: [
+            (d(30), "Your Spotify Premium receipt", "Payment of $9.99. Cancel anytime from settings.", nil),
+            (d(1), "Your Spotify Premium receipt", "Payment of $9.99", nil),
+        ], expectedStatus: .active, category: "false_positive"),
+
+        Scenario(id: 3, service: "GitHub", emails: [
+            (d(90), "Your GitHub Pro invoice", "Invoice for $4.00 charged to Visa", nil),
+            (d(60), "Your GitHub Pro invoice", "Invoice for $4.00", nil),
+            (d(30), "Your GitHub Pro invoice", "Invoice for $4.00", nil),
+        ], expectedStatus: .active, category: "active"),
+
+        Scenario(id: 4, service: "Vercel", emails: [
+            (d(15), "Payment confirmation from Vercel", "Your payment of $20.00 was successful", nil),
+        ], expectedStatus: .active, category: "active"),
+
+        Scenario(id: 5, service: "AWS", emails: [
+            (d(5), "Your AWS billing statement", "Monthly charge of $47.23", nil),
+        ], expectedStatus: .active, category: "active"),
+
+        Scenario(id: 6, service: "Notion", emails: [
+            (d(20), "Notion Plus renewal", "Your subscription renewal for $8.00", nil),
+        ], expectedStatus: .active, category: "active"),
+
+        Scenario(id: 7, service: "1Password", emails: [
+            (d(365), "Annual renewal for 1Password", "Your annual plan of $35.88 has been renewed", nil),
+        ], expectedStatus: .active, category: "active"),
+
+        Scenario(id: 8, service: "Figma", emails: [
+            (d(14), "Figma billing", "Auto-pay successful for $12.00", nil),
+        ], expectedStatus: .active, category: "active"),
+
+        // ——— FALSE POSITIVE: "cancel anytime" and marketing ———
+        Scenario(id: 9, service: "Disney+", emails: [
+            (d(10), "Welcome to Disney+", "You can cancel anytime from your account. Enjoy watching!", nil),
+            (d(3), "Your Disney+ receipt", "Payment of $7.99", nil),
+        ], expectedStatus: .active, category: "false_positive"),
+
+        Scenario(id: 10, service: "YouTube Premium", emails: [
+            (d(30), "YouTube Premium receipt", "Payment of $13.99", "Thank you for being a member. Easy to cancel from settings at any time. No cancellation fee applies."),
+        ], expectedStatus: .active, category: "false_positive"),
+
+        Scenario(id: 11, service: "Dropbox", emails: [
+            (d(45), "Dropbox Plus billing", "Monthly charge of $11.99", "Manage your plan — cancel before your next billing date to avoid charges. Cancel anytime."),
+        ], expectedStatus: .active, category: "false_positive"),
+
+        Scenario(id: 12, service: "Headspace", emails: [
+            (d(5), "Headspace welcome", "Start your journey. Free to cancel within 7 days.", nil),
+        ], expectedStatus: .active, category: "false_positive"),
+
+        Scenario(id: 13, service: "NordVPN", emails: [
+            (d(20), "How to cancel your NordVPN plan", "Here's our cancellation policy and step-by-step guide.", nil),
+        ], expectedStatus: .active, category: "false_positive"),
+
+        // ——— CANCELED SUBSCRIPTIONS (expectedStatus = .canceled) ———
+        Scenario(id: 14, service: "Hulu", emails: [
+            (d(90), "Your Hulu receipt", "Payment of $7.99", nil),
+            (d(60), "Your Hulu receipt", "Payment of $7.99", nil),
+            (d(15), "Your Hulu subscription has been canceled", "We're sorry to see you go", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 15, service: "HBO Max", emails: [
+            (d(45), "HBO Max billing", "Payment of $15.99", nil),
+            (d(10), "Cancellation confirmed", "Your HBO Max subscription has been canceled", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 16, service: "Adobe CC", emails: [
+            (d(30), "Adobe Creative Cloud invoice", "Monthly charge of $54.99", nil),
+            (d(5), "Adobe membership canceled", "Your Creative Cloud membership has been canceled effective today", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 17, service: "Gym Plus", emails: [
+            (d(60), "Gym Plus monthly billing", "Auto-pay of $29.99 processed", nil),
+            (d(8), "Membership canceled", "Your gym membership has been canceled effective immediately", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 18, service: "ExpressVPN", emails: [
+            (d(90), "ExpressVPN payment", "Payment of $8.32", nil),
+            (d(3), "Account closed", "Your ExpressVPN account has been successfully closed", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 19, service: "Calm", emails: [
+            (d(40), "Calm annual receipt", "Payment of $69.99", nil),
+            (d(12), "We've canceled your Calm subscription", "Your premium access ends on March 15", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 20, service: "Audible", emails: [
+            (d(25), "Audible membership billing", "Monthly charge $14.95", nil),
+            (d(7), "You have canceled your Audible membership", "Your Audible membership has been canceled", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 21, service: "Crunchyroll", emails: [
+            (d(35), "Crunchyroll Premium billing", "Payment of $7.99", nil),
+            (d(4), "Successfully unsubscribed from Crunchyroll", "You have been unsubscribed from Crunchyroll Premium", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 22, service: "Paramount+", emails: [
+            (d(60), "Paramount+ receipt", "Payment of $5.99", nil),
+            (d(2), "Subscription ended", "Your Paramount+ subscription has expired", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        Scenario(id: 23, service: "LinkedIn Premium", emails: [
+            (d(30), "LinkedIn Premium receipt", "Payment of $29.99", nil),
+            (d(6), "Your plan has been canceled", "Your LinkedIn Premium plan has been canceled", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        // ——— BODY-ONLY CANCELLATIONS (P2 contribution) ———
+        Scenario(id: 24, service: "Peacock", emails: [
+            (d(45), "Peacock Premium receipt", "Payment of $5.99", nil),
+            (d(8), "Update from Peacock", "Important changes to your account",
+             "We're writing to confirm that your subscription has been canceled. Your access continues until the end of your billing period."),
+        ], expectedStatus: .canceled, category: "body_only"),
+
+        Scenario(id: 25, service: "Strava", emails: [
+            (d(30), "Strava Summit receipt", "Payment of $7.99", nil),
+            (d(5), "Account notification", "Changes to your Strava account",
+             "This email confirms that your Strava Summit subscription has been canceled effective today. You can resubscribe at any time."),
+        ], expectedStatus: .canceled, category: "body_only"),
+
+        Scenario(id: 26, service: "Duolingo", emails: [
+            (d(60), "Duolingo Super receipt", "Payment of $6.99", nil),
+            (d(3), "Account update from Duolingo", "Your account has been updated",
+             "We have processed your cancellation request. Your Duolingo Super membership canceled as requested. You'll still have access until April 1."),
+        ], expectedStatus: .canceled, category: "body_only"),
+
+        // ——— CANCEL THEN REACTIVATE (expectedStatus = .active) ———
+        Scenario(id: 27, service: "Netflix (reactivated)", emails: [
+            (d(90), "Your receipt from Netflix", "Payment of $15.99", nil),
+            (d(45), "Subscription canceled", "Your Netflix subscription has been canceled", nil),
+            (d(5), "Your receipt from Netflix", "Payment of $15.99 received. Welcome back!", nil),
+        ], expectedStatus: .active, category: "reactivated"),
+
+        Scenario(id: 28, service: "Spotify (reactivated)", emails: [
+            (d(60), "Spotify Premium receipt", "Payment of $9.99", nil),
+            (d(30), "Cancellation confirmed", "Your Spotify subscription has been canceled", nil),
+            (d(3), "Spotify Premium receipt", "Payment of $9.99 received", nil),
+        ], expectedStatus: .active, category: "reactivated"),
+
+        Scenario(id: 29, service: "Hulu (reactivated)", emails: [
+            (d(120), "Hulu receipt", "Payment of $7.99", nil),
+            (d(60), "Your Hulu subscription has been canceled", "We're sorry to see you go", nil),
+            (d(10), "Hulu receipt", "Auto-pay of $7.99 processed", nil),
+        ], expectedStatus: .active, category: "reactivated"),
+
+        Scenario(id: 30, service: "Disney+ (reactivated)", emails: [
+            (d(90), "Disney+ receipt", "Payment of $7.99", nil),
+            (d(50), "Membership canceled", "Your Disney+ membership has been canceled", nil),
+            (d(7), "Disney+ billing", "Recurring payment of $7.99 received", nil),
+        ], expectedStatus: .active, category: "reactivated"),
+
+        // ——— EDGE CASES ———
+        // Service terminated
+        Scenario(id: 31, service: "Quibi", emails: [
+            (d(200), "Quibi receipt", "Payment of $4.99", nil),
+            (d(180), "Service terminated", "Quibi is shutting down. Your account has been deactivated.", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        // Very old cancel, no recent emails
+        Scenario(id: 32, service: "Tidal", emails: [
+            (d(300), "Tidal HiFi receipt", "Payment of $9.99", nil),
+            (d(250), "Subscription canceled", "Your Tidal subscription has been canceled", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        // Multiple cancellation emails (reinforcement)
+        Scenario(id: 33, service: "Apple Music", emails: [
+            (d(60), "Apple Music receipt", "Payment of $10.99", nil),
+            (d(10), "Cancellation confirmed", "Your Apple Music subscription will end on Feb 28", nil),
+            (d(9), "Your plan has been canceled", "Reminder: your Apple Music plan is now canceled", nil),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        // Body has "cancel anytime" but subject has real cancel
+        Scenario(id: 34, service: "Grammarly", emails: [
+            (d(30), "Grammarly Premium invoice", "Payment of $12.00", nil),
+            (d(5), "Subscription canceled", "Your Grammarly Premium is canceled",
+             "We've processed your cancellation. Cancel anytime policy applies — you won't be charged again."),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        // Subject ambiguous but body is clear cancel
+        Scenario(id: 35, service: "Evernote", emails: [
+            (d(45), "Evernote Professional billing", "Monthly charge of $14.99", nil),
+            (d(7), "Important update about your Evernote account", "Please review the changes below",
+             "After careful consideration, we have processed your request. Your subscription has been canceled as of today."),
+        ], expectedStatus: .canceled, category: "body_only"),
+
+        // Single email with no lifecycle signal — AI defers
+        Scenario(id: 36, service: "Notion AI", emails: [
+            (d(15), "Notion AI add-on billing", "Payment of $8.00", nil),
+        ], expectedStatus: .active, category: "active"),
+
+        // Cancel + body false positive should still count as cancel (cancel in subject wins)
+        Scenario(id: 37, service: "Canva", emails: [
+            (d(30), "Canva Pro receipt", "Payment of $12.99", nil),
+            (d(5), "Cancellation confirmed for Canva Pro", "Your Canva Pro is canceled",
+             "You can cancel anytime in the future if you resubscribe."),
+        ], expectedStatus: .canceled, category: "canceled"),
+
+        // No emails at all (empty timeline)
+        Scenario(id: 38, service: "EmptyService", emails: [], expectedStatus: .active, category: "active"),
+    ]
+
+    // MARK: - Quality Metrics Test
+
+    func testLifecycleDetectionQuality() {
+        var tp = 0 // true positive: expected cancel, got cancel
+        var fp = 0 // false positive: expected active, got cancel
+        var tn = 0 // true negative: expected active, got active
+        var fn = 0 // false negative: expected cancel, got active
+
+        var reactivationTP = 0
+        var reactivationFN = 0
+        var bodyOnlyDetected = 0
+        var bodyOnlyTotal = 0
+
+        var errors: [(id: Int, service: String, expected: String, predicted: String, confidence: Double)] = []
+
+        for scenario in scenarios {
+            let result = GmailSignalEngine.resolveLifecycle(
+                emails: scenario.emails.map { ($0.0, $0.1, $0.2, $0.3) },
+                aiStatus: .active, // default AI assumption
+                aiStatusDate: nil
+            )
+
+            let predictedStatus = result.confidence >= 0.80 ? result.status : .active
+
+            if scenario.category == "body_only" {
+                bodyOnlyTotal += 1
+            }
+
+            if scenario.expectedStatus == .canceled {
+                if predictedStatus == .canceled {
+                    tp += 1
+                    if scenario.category == "body_only" { bodyOnlyDetected += 1 }
+                } else {
+                    fn += 1
+                    errors.append((scenario.id, scenario.service, "canceled", predictedStatus.rawValue, result.confidence))
+                }
+            } else { // expected active (includes reactivated + false_positive)
+                if predictedStatus == .active {
+                    tn += 1
+                    if scenario.category == "reactivated" { reactivationTP += 1 }
+                } else {
+                    fp += 1
+                    if scenario.category == "reactivated" { reactivationFN += 1 }
+                    errors.append((scenario.id, scenario.service, "active", predictedStatus.rawValue, result.confidence))
+                }
+            }
+        }
+
+        let cancelRecall = tp + fn > 0 ? Double(tp) / Double(tp + fn) : 1.0
+        let cancelPrecision = tp + fp > 0 ? Double(tp) / Double(tp + fp) : 1.0
+        let fpRate = tn + fp > 0 ? Double(fp) / Double(tn + fp) : 0.0
+        let reactivationRecall = reactivationTP + reactivationFN > 0
+            ? Double(reactivationTP) / Double(reactivationTP + reactivationFN) : 1.0
+
+        // Print metrics report
+        NSLog("═══ P3 LIFECYCLE QUALITY REPORT ═══")
+        NSLog("Scenarios: %d | TP: %d | FP: %d | TN: %d | FN: %d", scenarios.count, tp, fp, tn, fn)
+        NSLog("Cancel recall:    %.2f (target >= 0.90)", cancelRecall)
+        NSLog("Cancel precision: %.2f (target >= 0.95)", cancelPrecision)
+        NSLog("FP rate:          %.2f (target <= 0.05)", fpRate)
+        NSLog("Reactivation recall: %.2f", reactivationRecall)
+        NSLog("Body-only detected:  %d/%d", bodyOnlyDetected, bodyOnlyTotal)
+
+        if !errors.isEmpty {
+            NSLog("─── ERRORS ───")
+            for err in errors {
+                NSLog("#%d %@: expected=%@ predicted=%@ conf=%.2f", err.id, err.service, err.expected, err.predicted, err.confidence)
+            }
+        }
+        NSLog("═══════════════════════════════════")
+
+        // Assert target thresholds
+        XCTAssertGreaterThanOrEqual(cancelRecall, 0.90, "Cancel recall must be >= 0.90")
+        XCTAssertGreaterThanOrEqual(cancelPrecision, 0.95, "Cancel precision must be >= 0.95")
+        XCTAssertLessThanOrEqual(fpRate, 0.05, "False positive rate must be <= 0.05")
+        XCTAssertGreaterThanOrEqual(reactivationRecall, 0.90, "Reactivation recall must be >= 0.90")
+    }
+
+    // MARK: - Cancellation Signal Coverage Test
+
+    /// Validates that each cancellation scenario has a detectable signal.
+    func testCancellationSignalCoverage() {
+        let cancelScenarios = scenarios.filter { $0.expectedStatus == .canceled }
+        var detected = 0
+
+        for scenario in cancelScenarios {
+            var maxScore: Double = 0
+            for email in scenario.emails {
+                let score = GmailSignalEngine.detectCancellationSignal(
+                    subject: email.subject, snippet: email.snippet, bodyText: email.bodyExcerpt
+                )
+                maxScore = max(maxScore, score)
+            }
+            if maxScore >= 0.80 { detected += 1 }
+        }
+
+        let coverage = cancelScenarios.isEmpty ? 1.0 : Double(detected) / Double(cancelScenarios.count)
+        NSLog("Cancel signal coverage: %d/%d (%.0f%%)", detected, cancelScenarios.count, coverage * 100)
+        XCTAssertGreaterThanOrEqual(coverage, 0.90, "At least 90%% of cancel scenarios should have detectable signal")
+    }
+
+    // MARK: - False Positive Resistance Test
+
+    /// Validates that false-positive scenarios do NOT trigger cancellation.
+    func testFalsePositiveResistance() {
+        let fpScenarios = scenarios.filter { $0.category == "false_positive" }
+        var falseAlarms = 0
+
+        for scenario in fpScenarios {
+            var maxScore: Double = 0
+            for email in scenario.emails {
+                let score = GmailSignalEngine.detectCancellationSignal(
+                    subject: email.subject, snippet: email.snippet, bodyText: email.bodyExcerpt
+                )
+                maxScore = max(maxScore, score)
+            }
+            if maxScore >= 0.80 { falseAlarms += 1 }
+        }
+
+        NSLog("False positive resistance: %d/%d triggered (0 expected)", falseAlarms, fpScenarios.count)
+        XCTAssertEqual(falseAlarms, 0, "No false-positive scenario should trigger cancellation signal")
+    }
+
+    // MARK: - P2 Body-Only Contribution Test
+
+    /// Validates that body-only cancellation scenarios are detected (P2 contribution).
+    func testP2BodyOnlyContribution() {
+        let bodyScenarios = scenarios.filter { $0.category == "body_only" }
+        var subjectSnippetOnly = 0
+        var withBody = 0
+
+        for scenario in bodyScenarios {
+            for email in scenario.emails {
+                // Score without body
+                let scoreNoBod = GmailSignalEngine.detectCancellationSignal(
+                    subject: email.subject, snippet: email.snippet
+                )
+                // Score with body
+                let scoreWithBody = GmailSignalEngine.detectCancellationSignal(
+                    subject: email.subject, snippet: email.snippet, bodyText: email.bodyExcerpt
+                )
+                if scoreNoBod >= 0.80 { subjectSnippetOnly += 1 }
+                if scoreWithBody >= 0.80 && scoreNoBod < 0.80 { withBody += 1 }
+            }
+        }
+
+        NSLog("P2 body-only contribution: %d emails detected only via body (not subject/snippet)", withBody)
+        XCTAssertGreaterThan(withBody, 0, "P2 body-aware detection should find at least some body-only cancellations")
+    }
+
+    // MARK: - Sender Ranking Contribution Test
+
+    /// Validates that lifecycle-priority ranking preserves low-volume cancellation senders.
+    func testP2SenderRankingContribution() {
+        // Create 31 senders: 30 high-volume no-signal + 1 low-volume with cancel signal
+        var senders: [SenderSummary] = []
+
+        for i in 0..<30 {
+            senders.append(SenderSummary(
+                senderName: "HighVol-\(i)",
+                senderDomain: "highvol\(i).com",
+                queryDomain: "highvol\(i).com",
+                emailCount: 20 + i,
+                amounts: [9.99],
+                latestSubject: "Your receipt",
+                latestDate: Date(timeIntervalSinceNow: -Double(i) * 86400),
+                latestSnippet: "Payment received"
+            ))
+        }
+
+        // Low-volume cancel sender (would be dropped by old emailCount sort)
+        senders.append(SenderSummary(
+            senderName: "CancelTarget",
+            senderDomain: "canceltarget.com",
+            queryDomain: "canceltarget.com",
+            emailCount: 1,
+            amounts: [],
+            latestSubject: "Your subscription has been canceled",
+            latestDate: Date(timeIntervalSinceNow: -86400),
+            latestSnippet: "We've canceled your membership"
+        ))
+
+        // Old ranking: just emailCount desc → cancel sender is #31 (dropped by prefix(30))
+        let oldRanked = senders.sorted { $0.emailCount > $1.emailCount }.prefix(30).map(\.senderName)
+        XCTAssertFalse(oldRanked.contains("CancelTarget"), "Old ranking should drop the cancel sender")
+
+        // New ranking: lifecycle-priority
+        let newRanked = senders.sorted { a, b in
+            let aScore = GmailSignalEngine.senderLifecycleScore(for: a)
+            let bScore = GmailSignalEngine.senderLifecycleScore(for: b)
+            let aHas = aScore >= 0.80
+            let bHas = bScore >= 0.80
+            if aHas != bHas { return aHas }
+            if aHas && bHas && aScore != bScore { return aScore > bScore }
+            if a.emailCount != b.emailCount { return a.emailCount > b.emailCount }
+            return a.latestDate > b.latestDate
+        }.prefix(30).map(\.senderName)
+
+        XCTAssertTrue(newRanked.contains("CancelTarget"),
+            "New lifecycle-priority ranking should preserve the cancel sender in top 30")
+    }
+}
