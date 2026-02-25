@@ -671,10 +671,14 @@ final class GmailScannerService {
                     aiStatus: candidates[i].subscriptionStatus,
                     aiStatusDate: candidates[i].statusEffectiveDate
                 )
+                // Always store deterministic lifecycle confidence (separate from AI confidence)
+                candidates[i].lifecycleConfidence = lifecycle.confidence
+                if lifecycle.effectiveDate != nil {
+                    candidates[i].statusEffectiveDate = lifecycle.effectiveDate
+                }
                 // Override AI status only if local confidence is high
                 if lifecycle.confidence >= 0.85 {
                     candidates[i].subscriptionStatus = lifecycle.status
-                    candidates[i].statusEffectiveDate = lifecycle.effectiveDate
                 }
             }
         }

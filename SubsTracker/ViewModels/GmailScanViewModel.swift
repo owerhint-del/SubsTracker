@@ -92,7 +92,7 @@ final class GmailScanViewModel {
                 GmailSignalEngine.namesMatch($0.name, candidate.name)
             }) {
                 // If candidate is canceled with high confidence, mark existing sub as canceled
-                if candidate.subscriptionStatus == .canceled && candidate.confidence >= 0.85 {
+                if candidate.subscriptionStatus == .canceled && candidate.effectiveLifecycleConfidence >= 0.85 {
                     match.subscriptionStatus = .canceled
                     match.statusChangedAt = candidate.statusEffectiveDate ?? Date()
                     NSLog("[AutoScan] Marked '%@' as canceled", match.name)
@@ -100,7 +100,7 @@ final class GmailScanViewModel {
                 }
 
                 // If existing sub is canceled but incoming candidate is active → reactivation
-                if match.subscriptionStatus == .canceled && candidate.subscriptionStatus == .active && candidate.confidence >= 0.85 {
+                if match.subscriptionStatus == .canceled && candidate.subscriptionStatus == .active && candidate.effectiveLifecycleConfidence >= 0.85 {
                     match.subscriptionStatus = .active
                     match.statusChangedAt = candidate.statusEffectiveDate ?? Date()
                     NSLog("[AutoScan] Reactivated '%@'", match.name)

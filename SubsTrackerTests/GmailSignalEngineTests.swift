@@ -1203,6 +1203,78 @@ final class DedupLifecycleTests: XCTestCase {
         XCTAssertTrue(filtered.isEmpty, "Active candidate with $0 cost should be filtered out")
     }
 
+    // MARK: - Effective Lifecycle Confidence Tests
+
+    /// Low AI confidence + high lifecycle confidence → effective confidence is high → cancel threshold passes.
+    func testEffectiveConfidence_LowAI_HighLifecycle_CancelApplied() {
+        var candidate = SubscriptionCandidate(
+            name: "Netflix",
+            cost: 15.99,
+            billingCycle: .monthly,
+            category: .streaming,
+            confidence: 0.55 // low AI confidence
+        )
+        candidate.subscriptionStatus = .canceled
+        candidate.lifecycleConfidence = 0.95 // high deterministic confidence
+
+        XCTAssertEqual(candidate.effectiveLifecycleConfidence, 0.95,
+                       "Should use lifecycleConfidence when available")
+        XCTAssertTrue(candidate.effectiveLifecycleConfidence >= 0.85,
+                      "Cancel threshold should pass with high lifecycle confidence despite low AI confidence")
+    }
+
+    /// Low AI confidence + high lifecycle confidence → reactivation threshold passes.
+    func testEffectiveConfidence_LowAI_HighLifecycle_ReactivationApplied() {
+        var candidate = SubscriptionCandidate(
+            name: "Spotify",
+            cost: 9.99,
+            billingCycle: .monthly,
+            category: .streaming,
+            confidence: 0.60 // low AI confidence
+        )
+        candidate.subscriptionStatus = .active
+        candidate.lifecycleConfidence = 0.92 // high deterministic confidence
+
+        XCTAssertEqual(candidate.effectiveLifecycleConfidence, 0.92)
+        XCTAssertTrue(candidate.effectiveLifecycleConfidence >= 0.85,
+                      "Reactivation threshold should pass with high lifecycle confidence")
+    }
+
+    /// Both AI and lifecycle confidence low → threshold should NOT pass.
+    func testEffectiveConfidence_BothLow_NoChange() {
+        var candidate = SubscriptionCandidate(
+            name: "GitHub",
+            cost: 4.0,
+            billingCycle: .monthly,
+            category: .development,
+            confidence: 0.50
+        )
+        candidate.subscriptionStatus = .canceled
+        candidate.lifecycleConfidence = 0.60 // low deterministic confidence too
+
+        XCTAssertEqual(candidate.effectiveLifecycleConfidence, 0.60)
+        XCTAssertFalse(candidate.effectiveLifecycleConfidence >= 0.85,
+                       "Both low → threshold should NOT pass, status should NOT change")
+    }
+
+    /// Nil lifecycle confidence → falls back to AI confidence (regression check).
+    func testEffectiveConfidence_NilLifecycle_FallsBackToAI() {
+        let candidate = SubscriptionCandidate(
+            name: "Vercel",
+            cost: 20.0,
+            billingCycle: .monthly,
+            category: .development,
+            confidence: 0.90
+        )
+        // lifecycleConfidence is nil by default
+
+        XCTAssertNil(candidate.lifecycleConfidence)
+        XCTAssertEqual(candidate.effectiveLifecycleConfidence, 0.90,
+                       "Should fall back to AI confidence when lifecycleConfidence is nil")
+        XCTAssertTrue(candidate.effectiveLifecycleConfidence >= 0.85,
+                      "High AI confidence should still pass the threshold as before")
+    }
+
     func testDedup_ActiveDuplicateStillDropped() {
         var activeCandidate = SubscriptionCandidate(
             name: "Netflix",

@@ -140,6 +140,12 @@ struct SubscriptionCandidate: Identifiable {
     var chargeType: ChargeType = .unknown
     var subscriptionStatus: SubscriptionStatus = .active
     var statusEffectiveDate: Date?
+    var lifecycleConfidence: Double?  // deterministic lifecycle resolver confidence (separate from AI)
+
+    /// Best available lifecycle confidence: deterministic resolver when available, otherwise AI confidence.
+    var effectiveLifecycleConfidence: Double {
+        lifecycleConfidence ?? confidence
+    }
 
     var confidenceLabel: String {
         if confidence >= 0.9 { return "High" }
