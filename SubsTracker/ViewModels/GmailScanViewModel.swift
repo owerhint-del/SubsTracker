@@ -242,9 +242,36 @@ final class GmailScanViewModel {
     func addSelectedSubscriptions(viewModel: SubscriptionViewModel, context: ModelContext) {
         let selected = candidates.filter(\.isSelected)
 
+        // Fetch existing subscriptions for lifecycle updates
+        let descriptor = FetchDescriptor<Subscription>()
+        let existingSubs = (try? context.fetch(descriptor)) ?? []
+
         for candidate in selected {
-            // Skip canceled recurring subscriptions — don't insert as active
-            if candidate.subscriptionStatus == .canceled { continue }
+            // Canceled candidate → update existing sub's status instead of inserting
+            if candidate.subscriptionStatus == .canceled {
+                if let match = existingSubs.first(where: { GmailSignalEngine.namesMatch($0.name, candidate.name) }) {
+                    match.subscriptionStatus = .canceled
+                    match.statusChangedAt = candidate.statusEffectiveDate ?? Date()
+                    NSLog("[ManualScan] Marked '%@' as canceled", match.name)
+                }
+                continue
+            }
+
+            // Active candidate matching a canceled existing sub → reactivate
+            if candidate.subscriptionStatus == .active,
+               let match = existingSubs.first(where: {
+                   GmailSignalEngine.namesMatch($0.name, candidate.name) && $0.subscriptionStatus == .canceled
+               }) {
+                match.subscriptionStatus = .active
+                match.statusChangedAt = Date()
+                if let renewalDate = candidate.renewalDate { match.renewalDate = renewalDate }
+                if candidate.cost > 0 {
+                    match.cost = candidate.cost
+                    match.billingCycle = candidate.billingCycle.rawValue
+                }
+                NSLog("[ManualScan] Reactivated '%@'", match.name)
+                continue
+            }
 
             if candidate.chargeType.isRecurring || candidate.chargeType == .unknown {
                 // Recurring → Subscription model

@@ -1150,6 +1150,59 @@ final class DedupLifecycleTests: XCTestCase {
     }
 
     /// Active candidate for an existing name should still be dropped (no lifecycle change).
+    /// Canceled candidate with cost == 0 should survive the pipeline cost filter.
+    /// This tests that the dedup output retains zero-cost canceled candidates.
+    func testDedup_CanceledCandidateWithZeroCost_SurvivesCostFilter() {
+        var canceledCandidate = SubscriptionCandidate(
+            name: "Netflix",
+            cost: 0,
+            billingCycle: .monthly,
+            category: .streaming,
+            confidence: 0.95
+        )
+        canceledCandidate.chargeType = .recurringSubscription
+        canceledCandidate.subscriptionStatus = .canceled
+
+        var activeCandidate = SubscriptionCandidate(
+            name: "Spotify",
+            cost: 9.99,
+            billingCycle: .monthly,
+            category: .streaming,
+            confidence: 0.9
+        )
+        activeCandidate.chargeType = .recurringSubscription
+        activeCandidate.subscriptionStatus = .active
+
+        let candidates = [canceledCandidate, activeCandidate]
+        let deduped = GmailSignalEngine.testDeduplicateCandidates(candidates, existingNames: [])
+
+        // Apply the same filter the pipeline uses: cost > 0 || subscriptionStatus != .active
+        let filtered = deduped.filter { $0.cost > 0 || $0.subscriptionStatus != .active }
+
+        XCTAssertTrue(filtered.contains(where: { $0.name == "Netflix" }),
+                       "Canceled candidate with $0 cost should survive the cost filter")
+        XCTAssertTrue(filtered.contains(where: { $0.name == "Spotify" }),
+                       "Active candidate with cost > 0 should also survive")
+    }
+
+    /// Active candidate with cost == 0 should still be filtered out.
+    func testDedup_ActiveCandidateWithZeroCost_FilteredOut() {
+        var activeZeroCost = SubscriptionCandidate(
+            name: "FreeService",
+            cost: 0,
+            billingCycle: .monthly,
+            category: .other,
+            confidence: 0.5
+        )
+        activeZeroCost.chargeType = .recurringSubscription
+        activeZeroCost.subscriptionStatus = .active
+
+        let deduped = GmailSignalEngine.testDeduplicateCandidates([activeZeroCost], existingNames: [])
+        let filtered = deduped.filter { $0.cost > 0 || $0.subscriptionStatus != .active }
+
+        XCTAssertTrue(filtered.isEmpty, "Active candidate with $0 cost should be filtered out")
+    }
+
     func testDedup_ActiveDuplicateStillDropped() {
         var activeCandidate = SubscriptionCandidate(
             name: "Netflix",

@@ -114,7 +114,7 @@ final class GmailScannerService {
         // Phase 5: Deduplicate using normalized names + filter zero-cost
         progress = ScanProgress(phase: .deduplicating)
         var deduped = deduplicateCandidates(candidates, existingNames: existingNames)
-        deduped = deduped.filter { $0.cost > 0 }
+        deduped = deduped.filter { $0.cost > 0 || $0.subscriptionStatus != .active }
 
         // Auto-deselect estimated + low confidence candidates
         for i in deduped.indices {
