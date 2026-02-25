@@ -86,6 +86,7 @@ final class GmailScanViewModel {
     private func addOrUpdateSubscriptions(_ candidates: [SubscriptionCandidate], context: ModelContext) {
         let descriptor = FetchDescriptor<Subscription>()
         let existing = (try? context.fetch(descriptor)) ?? []
+        var qualityOutcomes: [(serviceName: String, outcome: String, resultingStatus: String?, wasReactivation: Bool)] = []
 
         for candidate in candidates {
             if let match = existing.first(where: {
@@ -96,6 +97,7 @@ final class GmailScanViewModel {
                     match.subscriptionStatus = .canceled
                     match.statusChangedAt = candidate.statusEffectiveDate ?? Date()
                     NSLog("[AutoScan] Marked '%@' as canceled", match.name)
+                    qualityOutcomes.append((serviceName: candidate.name, outcome: "auto_applied", resultingStatus: SubscriptionStatus.canceled.rawValue, wasReactivation: false))
                     continue
                 }
 
@@ -104,6 +106,9 @@ final class GmailScanViewModel {
                     match.subscriptionStatus = .active
                     match.statusChangedAt = candidate.statusEffectiveDate ?? Date()
                     NSLog("[AutoScan] Reactivated '%@'", match.name)
+                    qualityOutcomes.append((serviceName: candidate.name, outcome: "auto_applied", resultingStatus: SubscriptionStatus.active.rawValue, wasReactivation: true))
+                } else {
+                    qualityOutcomes.append((serviceName: candidate.name, outcome: "auto_applied", resultingStatus: match.subscriptionStatus.rawValue, wasReactivation: false))
                 }
 
                 // Update existing subscription with fresh data from emails
@@ -116,7 +121,10 @@ final class GmailScanViewModel {
                 }
             } else {
                 // Don't insert new canceled subscriptions
-                if candidate.subscriptionStatus == .canceled { continue }
+                if candidate.subscriptionStatus == .canceled {
+                    qualityOutcomes.append((serviceName: candidate.name, outcome: "auto_skipped", resultingStatus: nil, wasReactivation: false))
+                    continue
+                }
 
                 // Insert new subscription
                 let sub = Subscription(
@@ -129,10 +137,16 @@ final class GmailScanViewModel {
                     notes: candidate.notes
                 )
                 context.insert(sub)
+                qualityOutcomes.append((serviceName: candidate.name, outcome: "auto_applied", resultingStatus: SubscriptionStatus.active.rawValue, wasReactivation: false))
             }
         }
 
         try? context.save()
+
+        // Log quality outcomes
+        if let scanId = scanner.lastScanId {
+            ScanQualityLog.shared.updateOutcomes(scanId: scanId, outcomes: qualityOutcomes)
+        }
     }
 
     // MARK: - Scan
@@ -241,10 +255,17 @@ final class GmailScanViewModel {
 
     func addSelectedSubscriptions(viewModel: SubscriptionViewModel, context: ModelContext) {
         let selected = candidates.filter(\.isSelected)
+        let ignored = candidates.filter { !$0.isSelected }
 
         // Fetch existing subscriptions for lifecycle updates
         let descriptor = FetchDescriptor<Subscription>()
         let existingSubs = (try? context.fetch(descriptor)) ?? []
+        var qualityOutcomes: [(serviceName: String, outcome: String, resultingStatus: String?, wasReactivation: Bool)] = []
+
+        // Log ignored candidates
+        for candidate in ignored {
+            qualityOutcomes.append((serviceName: candidate.name, outcome: "ignored", resultingStatus: nil, wasReactivation: false))
+        }
 
         for candidate in selected {
             // Canceled candidate → update existing sub's status instead of inserting
@@ -253,6 +274,9 @@ final class GmailScanViewModel {
                     match.subscriptionStatus = .canceled
                     match.statusChangedAt = candidate.statusEffectiveDate ?? Date()
                     NSLog("[ManualScan] Marked '%@' as canceled", match.name)
+                    qualityOutcomes.append((serviceName: candidate.name, outcome: "selected", resultingStatus: SubscriptionStatus.canceled.rawValue, wasReactivation: false))
+                } else {
+                    qualityOutcomes.append((serviceName: candidate.name, outcome: "selected", resultingStatus: nil, wasReactivation: false))
                 }
                 continue
             }
@@ -270,6 +294,7 @@ final class GmailScanViewModel {
                     match.billingCycle = candidate.billingCycle.rawValue
                 }
                 NSLog("[ManualScan] Reactivated '%@'", match.name)
+                qualityOutcomes.append((serviceName: candidate.name, outcome: "selected", resultingStatus: SubscriptionStatus.active.rawValue, wasReactivation: true))
                 continue
             }
 
@@ -297,9 +322,15 @@ final class GmailScanViewModel {
                 context.insert(purchase)
             }
             // Refunds are skipped (not saved)
+            qualityOutcomes.append((serviceName: candidate.name, outcome: "selected", resultingStatus: candidate.subscriptionStatus.rawValue, wasReactivation: false))
         }
 
         try? context.save()
+
+        // Log quality outcomes
+        if let scanId = scanner.lastScanId {
+            ScanQualityLog.shared.updateOutcomes(scanId: scanId, outcomes: qualityOutcomes)
+        }
 
         // Close review after adding
         showingReview = false

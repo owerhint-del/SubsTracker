@@ -6,6 +6,7 @@ final class GmailScannerService {
     static let shared = GmailScannerService()
 
     var progress = ScanProgress()
+    private(set) var lastScanId: String?
 
     private let gmail = GmailOAuthService.shared
     private let maxBodyFetches = 15
@@ -129,7 +130,67 @@ final class GmailScannerService {
         }
 
         NSLog("[Scanner] Phase 5 — after dedup+filter: %d subscriptions", deduped.count)
+
+        // Phase 5.5: Quality telemetry logging
+        let scanId = UUID().uuidString
+        self.lastScanId = scanId
+        logQualityEntries(scanId: scanId, candidates: deduped, senders: senders, existingNames: existingNames)
+
         return deduped
+    }
+
+    /// Logs quality entries for each candidate after pipeline completion.
+    private func logQualityEntries(scanId: String, candidates: [SubscriptionCandidate], senders: [SenderSummary], existingNames: [String]) {
+        let now = Date()
+        var entries: [ScanQualityEngine.ScanQualityEntry] = []
+
+        for candidate in candidates {
+            let matchingSender = senders.first { sender in
+                GmailSignalEngine.namesMatch(sender.senderName, candidate.name)
+            }
+
+            // Compute cancel signal flags from sender data
+            var hasCancelSubject = false
+            var hasCancelSnippet = false
+            var hasCancelBody = false
+            var hasBillingSignal = false
+
+            if let sender = matchingSender {
+                let subjectScore = GmailSignalEngine.detectCancellationSignal(subject: sender.latestSubject, snippet: "")
+                let snippetScore = GmailSignalEngine.detectCancellationSignal(subject: "", snippet: sender.latestSnippet)
+                let bodyScore: Double
+                if let body = sender.bodyText {
+                    bodyScore = GmailSignalEngine.detectCancellationSignal(subject: "", snippet: "", bodyText: body)
+                } else {
+                    bodyScore = 0
+                }
+
+                hasCancelSubject = subjectScore >= 0.80
+                hasCancelSnippet = snippetScore >= 0.80
+                hasCancelBody = bodyScore >= 0.80
+                hasBillingSignal = sender.billingScore >= 0.70
+            }
+
+            let wasExisting = existingNames.contains { GmailSignalEngine.namesMatch($0, candidate.name) }
+
+            entries.append(ScanQualityEngine.ScanQualityEntry(
+                scanId: scanId,
+                timestamp: now,
+                serviceName: candidate.name,
+                predictedChargeType: candidate.chargeType.rawValue,
+                predictedStatus: candidate.subscriptionStatus.rawValue,
+                aiConfidence: candidate.confidence,
+                lifecycleConfidence: candidate.lifecycleConfidence,
+                hasCancelSignalSubject: hasCancelSubject,
+                hasCancelSignalSnippet: hasCancelSnippet,
+                hasCancelSignalBody: hasCancelBody,
+                hasBillingSignal: hasBillingSignal,
+                wasExistingSubscription: wasExisting
+            ))
+        }
+
+        ScanQualityLog.shared.appendBatch(entries)
+        NSLog("[Scanner] Phase 5.5 — logged %d quality entries for scan %@", entries.count, scanId)
     }
 
     // MARK: - Phase 1: Search Gmail

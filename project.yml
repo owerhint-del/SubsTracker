@@ -40,6 +40,7 @@ targets:
       - path: SubsTracker/Services/BackgroundRefreshPolicyEngine.swift
       - path: SubsTracker/Services/UsagePollingEngine.swift
       - path: SubsTracker/Services/MenuBarLabelEngine.swift
+      - path: SubsTracker/Services/ScanQualityEngine.swift
       - path: Shared/CurrencyFormatter.swift
       - path: Shared/SharedDateFormatter.swift
       - path: SubsTracker/Models/Enums.swift
