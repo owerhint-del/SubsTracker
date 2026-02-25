@@ -453,10 +453,10 @@ enum GmailSignalEngine {
         "risk-free cancellation"
     ]
 
-    /// Detects cancellation signal strength (0.0–1.0) from email subject/snippet.
+    /// Detects cancellation signal strength (0.0–1.0) from email subject/snippet/body.
     /// False positives are checked first — if present, returns 0 regardless of other keywords.
-    static func detectCancellationSignal(subject: String, snippet: String) -> Double {
-        let combinedText = "\(subject) \(snippet)".lowercased()
+    static func detectCancellationSignal(subject: String, snippet: String, bodyText: String? = nil) -> Double {
+        let combinedText = "\(subject) \(snippet) \(bodyText ?? "")".lowercased()
 
         // False positives override everything
         for fp in cancellationFalsePositives {
@@ -485,8 +485,9 @@ enum GmailSignalEngine {
 
     /// Resolves subscription lifecycle from a chronological email timeline.
     /// Compares the latest cancel event vs latest charge event to determine current status.
+    /// Body excerpts are included in cancellation detection when available.
     static func resolveLifecycle(
-        emails: [(date: Date, subject: String, snippet: String)],
+        emails: [(date: Date, subject: String, snippet: String, bodyExcerpt: String?)],
         aiStatus: SubscriptionStatus,
         aiStatusDate: Date?
     ) -> LifecycleResult {
@@ -499,7 +500,7 @@ enum GmailSignalEngine {
         var latestCharge: (date: Date, score: Double)?
 
         for email in emails {
-            let cancelScore = detectCancellationSignal(subject: email.subject, snippet: email.snippet)
+            let cancelScore = detectCancellationSignal(subject: email.subject, snippet: email.snippet, bodyText: email.bodyExcerpt)
             if cancelScore >= 0.80 {
                 if latestCancel == nil || email.date > latestCancel!.date {
                     latestCancel = (email.date, cancelScore)
@@ -642,5 +643,21 @@ enum GmailSignalEngine {
             return best
         }
         .sorted { $0.confidence > $1.confidence }
+    }
+
+    // MARK: - Sender Lifecycle Score (for ranking)
+
+    /// Computes the best cancellation signal score across a sender's emails (subject + snippet).
+    /// Used to boost lifecycle-significant senders in ranking before the top-30 cap.
+    static func senderLifecycleScore(for sender: SenderSummary) -> Double {
+        var maxScore: Double = 0
+        // Check latest subject/snippet
+        maxScore = max(maxScore, detectCancellationSignal(subject: sender.latestSubject, snippet: sender.latestSnippet))
+        // Check timeline emails
+        for email in sender.recentEmails {
+            let score = detectCancellationSignal(subject: email.subject, snippet: email.snippet, bodyText: email.bodyExcerpt)
+            maxScore = max(maxScore, score)
+        }
+        return maxScore
     }
 }

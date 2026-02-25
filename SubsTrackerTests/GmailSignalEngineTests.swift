@@ -943,10 +943,10 @@ final class CancellationSignalTests: XCTestCase {
 final class LifecycleResolutionTests: XCTestCase {
 
     func testChargeThenCancel_ResultsCanceled() {
-        let emails: [(date: Date, subject: String, snippet: String)] = [
-            (Date(timeIntervalSinceNow: -60*86400), "Your receipt from Netflix", "Payment of $15.99", ""),
-            (Date(timeIntervalSinceNow: -30*86400), "Subscription canceled", "Your Netflix subscription has been canceled", "")
-        ].map { ($0.0, $0.1, $0.2) }
+        let emails: [(date: Date, subject: String, snippet: String, bodyExcerpt: String?)] = [
+            (Date(timeIntervalSinceNow: -60*86400), "Your receipt from Netflix", "Payment of $15.99", nil),
+            (Date(timeIntervalSinceNow: -30*86400), "Subscription canceled", "Your Netflix subscription has been canceled", nil)
+        ]
 
         let result = GmailSignalEngine.resolveLifecycle(
             emails: emails,
@@ -958,10 +958,10 @@ final class LifecycleResolutionTests: XCTestCase {
     }
 
     func testCancelThenCharge_ResultsActive() {
-        let emails: [(date: Date, subject: String, snippet: String)] = [
-            (Date(timeIntervalSinceNow: -60*86400), "Subscription canceled", "Your subscription has been canceled", ""),
-            (Date(timeIntervalSinceNow: -10*86400), "Your receipt from Netflix", "Payment of $15.99 received", "")
-        ].map { ($0.0, $0.1, $0.2) }
+        let emails: [(date: Date, subject: String, snippet: String, bodyExcerpt: String?)] = [
+            (Date(timeIntervalSinceNow: -60*86400), "Subscription canceled", "Your subscription has been canceled", nil),
+            (Date(timeIntervalSinceNow: -10*86400), "Your receipt from Netflix", "Payment of $15.99 received", nil)
+        ]
 
         let result = GmailSignalEngine.resolveLifecycle(
             emails: emails,
@@ -972,10 +972,10 @@ final class LifecycleResolutionTests: XCTestCase {
     }
 
     func testCancelAnytimeInTimeline_StaysActive() {
-        let emails: [(date: Date, subject: String, snippet: String)] = [
-            (Date(timeIntervalSinceNow: -30*86400), "Your receipt from Spotify", "Payment of $9.99. Cancel anytime from settings.", ""),
-            (Date(timeIntervalSinceNow: -5*86400), "Your receipt from Spotify", "Payment of $9.99 received", "")
-        ].map { ($0.0, $0.1, $0.2) }
+        let emails: [(date: Date, subject: String, snippet: String, bodyExcerpt: String?)] = [
+            (Date(timeIntervalSinceNow: -30*86400), "Your receipt from Spotify", "Payment of $9.99. Cancel anytime from settings.", nil),
+            (Date(timeIntervalSinceNow: -5*86400), "Your receipt from Spotify", "Payment of $9.99 received", nil)
+        ]
 
         let result = GmailSignalEngine.resolveLifecycle(
             emails: emails,
@@ -1288,5 +1288,140 @@ final class DedupLifecycleTests: XCTestCase {
 
         let result = GmailSignalEngine.testDeduplicateCandidates([activeCandidate], existingNames: ["Netflix"])
         XCTAssertTrue(result.isEmpty, "Active recurring duplicate of existing sub should be dropped")
+    }
+}
+
+// MARK: - Body-Aware Cancellation Detection Tests
+
+final class BodyCancellationTests: XCTestCase {
+
+    /// Body-only cancellation phrase should produce a high score.
+    func testBodyOnlyCancellation_HighScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Update from Netflix",
+            snippet: "Your account details",
+            bodyText: "Your subscription has been canceled effective immediately. We're sorry to see you go."
+        )
+        XCTAssertGreaterThanOrEqual(score, 0.95,
+            "Body-only cancellation phrase should score >= 0.95")
+    }
+
+    /// Body-only false positive ("cancel anytime") should score 0.
+    func testBodyOnlyFalsePositive_ZeroScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Welcome to Spotify Premium",
+            snippet: "Enjoy your music",
+            bodyText: "You can cancel anytime from your account settings. No questions asked."
+        )
+        XCTAssertEqual(score, 0,
+            "Body-only 'cancel anytime' false positive should score 0")
+    }
+
+    /// Body cancel with subject false positive — false positive overrides.
+    func testBodyCancelWithSubjectFalsePositive_ZeroScore() {
+        let score = GmailSignalEngine.detectCancellationSignal(
+            subject: "Easy to cancel — your subscription details",
+            snippet: "",
+            bodyText: "Your subscription has been canceled."
+        )
+        XCTAssertEqual(score, 0,
+            "False positive in subject should override body cancellation signal")
+    }
+
+    /// resolveLifecycle with body-only cancel signal results in canceled status.
+    func testResolveLifecycle_BodyOnlyCancel_ResultsCanceled() {
+        let emails: [(date: Date, subject: String, snippet: String, bodyExcerpt: String?)] = [
+            (Date(timeIntervalSinceNow: -60*86400), "Your receipt from Hulu", "Payment of $7.99", nil),
+            (Date(timeIntervalSinceNow: -10*86400), "Account update from Hulu", "Important changes to your account",
+             "We're writing to confirm that your subscription has been canceled. Your access will continue until the end of your billing period.")
+        ]
+
+        let result = GmailSignalEngine.resolveLifecycle(
+            emails: emails,
+            aiStatus: .active,
+            aiStatusDate: nil
+        )
+        XCTAssertEqual(result.status, .canceled,
+            "Body-only cancellation signal should result in canceled status")
+        XCTAssertGreaterThanOrEqual(result.confidence, 0.85)
+    }
+}
+
+// MARK: - Sender Lifecycle Ranking Tests
+
+final class SenderRankingTests: XCTestCase {
+
+    /// A low-volume sender with high cancellation signal should rank above a high-volume sender with no signal.
+    func testRanking_LifecycleSignalBeatsHighVolume() {
+        let highVolume = SenderSummary(
+            senderName: "Marketing Corp",
+            senderDomain: "marketing.com",
+            queryDomain: "marketing.com",
+            emailCount: 50,
+            amounts: [9.99],
+            latestSubject: "Your monthly newsletter",
+            latestDate: Date(),
+            latestSnippet: "Check out our latest deals"
+        )
+
+        let lowVolumeCanceled = SenderSummary(
+            senderName: "Netflix",
+            senderDomain: "netflix.com",
+            queryDomain: "netflix.com",
+            emailCount: 1,
+            amounts: [],
+            latestSubject: "Your subscription has been canceled",
+            latestDate: Date(timeIntervalSinceNow: -86400),
+            latestSnippet: "We've canceled your Netflix membership"
+        )
+
+        let highVolumeScore = GmailSignalEngine.senderLifecycleScore(for: highVolume)
+        let lowVolumeScore = GmailSignalEngine.senderLifecycleScore(for: lowVolumeCanceled)
+
+        XCTAssertEqual(highVolumeScore, 0, "Marketing sender should have 0 lifecycle score")
+        XCTAssertGreaterThanOrEqual(lowVolumeScore, 0.80,
+            "Cancellation sender should have high lifecycle score")
+
+        // Simulate the ranking sort
+        let senders = [highVolume, lowVolumeCanceled]
+        let ranked = senders.sorted { a, b in
+            let aScore = GmailSignalEngine.senderLifecycleScore(for: a)
+            let bScore = GmailSignalEngine.senderLifecycleScore(for: b)
+            let aHasSignal = aScore >= 0.80
+            let bHasSignal = bScore >= 0.80
+            if aHasSignal != bHasSignal { return aHasSignal }
+            if aHasSignal && bHasSignal && aScore != bScore { return aScore > bScore }
+            if a.emailCount != b.emailCount { return a.emailCount > b.emailCount }
+            return a.latestDate > b.latestDate
+        }
+
+        XCTAssertEqual(ranked.first?.senderName, "Netflix",
+            "Low-volume cancellation sender should rank above high-volume no-signal sender")
+    }
+
+    /// Sender with body-only cancellation signal in timeline should get high lifecycle score.
+    func testRanking_BodyOnlyCancellationSignalBoostsSender() {
+        var sender = SenderSummary(
+            senderName: "Hulu",
+            senderDomain: "hulu.com",
+            queryDomain: "hulu.com",
+            emailCount: 2,
+            amounts: [7.99],
+            latestSubject: "Account update",
+            latestDate: Date(),
+            latestSnippet: "Important changes"
+        )
+        sender.recentEmails = [
+            EmailSummary(
+                date: Date(),
+                subject: "Account update",
+                snippet: "Important changes",
+                bodyExcerpt: "Your subscription has been canceled effective today."
+            )
+        ]
+
+        let score = GmailSignalEngine.senderLifecycleScore(for: sender)
+        XCTAssertGreaterThanOrEqual(score, 0.80,
+            "Body-only cancellation signal in timeline should give high lifecycle score")
     }
 }

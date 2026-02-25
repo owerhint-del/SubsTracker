@@ -44,6 +44,7 @@ struct EmailSummary {
     let date: Date
     let subject: String
     let snippet: String
+    var bodyExcerpt: String?  // first ~500 chars of plain-text body (for lifecycle signals)
 }
 
 // MARK: - Cost Source

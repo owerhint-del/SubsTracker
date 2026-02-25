@@ -76,6 +76,11 @@ final class GmailScannerService {
             for (index, sender) in bodyFetchCandidates {
                 if let bodyText = try? await fetchLatestMessageBody(for: sender) {
                     senders[index].bodyText = bodyText
+                    // Store body excerpt in the latest timeline entry for lifecycle detection
+                    let excerpt = String(bodyText.prefix(500))
+                    if !senders[index].recentEmails.isEmpty {
+                        senders[index].recentEmails[0].bodyExcerpt = excerpt
+                    }
                     // Re-extract amounts from body text
                     let bodyAmounts = GmailSignalEngine.extractAmounts(from: bodyText, source: "body")
                     if !bodyAmounts.isEmpty {
@@ -374,10 +379,22 @@ final class GmailScannerService {
             ))
         }
 
-        return summaries
-            .sorted { $0.emailCount > $1.emailCount }
-            .prefix(30)
-            .map { $0 }
+        // Lifecycle-aware ranking: senders with cancellation signals get priority,
+        // then by lifecycle score, email count, and recency — so low-volume cancellation
+        // senders aren't dropped by the top-30 cap.
+        return summaries.sorted { a, b in
+            let aScore = GmailSignalEngine.senderLifecycleScore(for: a)
+            let bScore = GmailSignalEngine.senderLifecycleScore(for: b)
+            let aHasSignal = aScore >= 0.80
+            let bHasSignal = bScore >= 0.80
+
+            if aHasSignal != bHasSignal { return aHasSignal }
+            if aHasSignal && bHasSignal && aScore != bScore { return aScore > bScore }
+            if a.emailCount != b.emailCount { return a.emailCount > b.emailCount }
+            return a.latestDate > b.latestDate
+        }
+        .prefix(30)
+        .map { $0 }
     }
 
     // MARK: - Phase 3.5: Selective Body Fetch
@@ -664,7 +681,7 @@ final class GmailScannerService {
 
             if let sender = matchingSender, !sender.recentEmails.isEmpty {
                 let emailTuples = sender.recentEmails.map {
-                    (date: $0.date, subject: $0.subject, snippet: $0.snippet)
+                    (date: $0.date, subject: $0.subject, snippet: $0.snippet, bodyExcerpt: $0.bodyExcerpt)
                 }
                 let lifecycle = GmailSignalEngine.resolveLifecycle(
                     emails: emailTuples,
